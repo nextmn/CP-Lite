@@ -1,2 +1,6 @@
+control:
+  uri: "http://192.0.2.3:8080"
+  bind-addr: "192.0.2.3:8080"
+
 logger:
   level: "debug"

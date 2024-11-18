@@ -8,6 +8,8 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
+	"github.com/nextmn/json-api/jsonapi"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -29,5 +31,11 @@ func ParseConf(file string) (*CPConfig, error) {
 }
 
 type CPConfig struct {
-	Logger *Logger `yaml:"logger,omitempty"`
+	Control Control `yaml:"control"`
+	Logger  *Logger `yaml:"logger,omitempty"`
+}
+
+type Control struct {
+	Uri      jsonapi.ControlURI `yaml:"uri"`       // may contain domain name instead of ip address
+	BindAddr string             `yaml:"bind-addr"` // in the form `ip:port`
 }
