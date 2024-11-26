@@ -19,18 +19,25 @@ import (
 
 type HttpServerEntity struct {
 	srv *http.Server
+	ps  *PduSessions
 }
 
-func NewHttpServerEntity(bindAddr string) *HttpServerEntity {
+func NewHttpServerEntity(bindAddr string, ps *PduSessions) *HttpServerEntity {
 	// TODO: gin.SetMode(gin.DebugMode) / gin.SetMode(gin.ReleaseMode) depending on log level
 	r := gin.Default()
 	r.GET("/status", Status)
+
+	// PDU Sessions
+	r.POST("/ps/establishment-request", ps.EstablishmentRequest)
+	r.POST("/ps/n2-establishment-response", ps.N2EstablishmentResponse)
+
 	logrus.WithFields(logrus.Fields{"http-addr": bindAddr}).Info("HTTP Server created")
 	e := HttpServerEntity{
 		srv: &http.Server{
 			Addr:    bindAddr,
 			Handler: r,
 		},
+		ps: ps,
 	}
 	return &e
 }
