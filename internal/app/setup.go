@@ -2,6 +2,7 @@
 // Use of this source code is governed by a MIT-style license that can be
 // found in the LICENSE file.
 // SPDX-License-Identifier: MIT
+
 package app
 
 import (
@@ -16,9 +17,10 @@ type Setup struct {
 }
 
 func NewSetup(config *config.CPConfig) *Setup {
+	ps := NewPduSessions(config.Control.Uri, config.Slices, "go-github-nextmn-cp-lite")
 	return &Setup{
 		config:           config,
-		httpServerEntity: NewHttpServerEntity(config.Control.BindAddr),
+		httpServerEntity: NewHttpServerEntity(config.Control.BindAddr, ps),
 	}
 }
 func (s *Setup) Init(ctx context.Context) error {
