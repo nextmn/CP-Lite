@@ -39,7 +39,7 @@ type CPConfig struct {
 
 type Control struct {
 	Uri      jsonapi.ControlURI `yaml:"uri"`       // may contain domain name instead of ip address
-	BindAddr string             `yaml:"bind-addr"` // in the form `ip:port`
+	BindAddr netip.AddrPort     `yaml:"bind-addr"` // in the form `ip:port`
 }
 
 type Slice struct {

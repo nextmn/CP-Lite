@@ -87,7 +87,7 @@ type PduSession struct {
 }
 
 func NewPduSessions(control jsonapi.ControlURI, slices map[string]config.Slice, userAgent string) *PduSessions {
-	var pools map[string]*Pool
+	pools := make(map[string]*Pool)
 	for name, p := range slices {
 		pools[name] = NewPool(p.Pool)
 	}
