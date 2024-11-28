@@ -6,6 +6,7 @@ package config
 
 import (
 	"io/ioutil"
+	"net/netip"
 	"path/filepath"
 
 	"github.com/nextmn/json-api/jsonapi"
@@ -31,11 +32,18 @@ func ParseConf(file string) (*CPConfig, error) {
 }
 
 type CPConfig struct {
-	Control Control `yaml:"control"`
-	Logger  *Logger `yaml:"logger,omitempty"`
+	Control Control          `yaml:"control"`
+	Logger  *Logger          `yaml:"logger,omitempty"`
+	Slices  map[string]Slice `yaml:"slices"`
+	Pfcp    netip.Addr       `yaml:"pfcp"`
 }
 
 type Control struct {
 	Uri      jsonapi.ControlURI `yaml:"uri"`       // may contain domain name instead of ip address
-	BindAddr string             `yaml:"bind-addr"` // in the form `ip:port`
+	BindAddr netip.AddrPort     `yaml:"bind-addr"` // in the form `ip:port`
+}
+
+type Slice struct {
+	Pool netip.Prefix `yaml:"pool"`
+	Upfs []netip.Addr `yaml:"upfs"`
 }
