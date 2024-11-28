@@ -35,6 +35,7 @@ type CPConfig struct {
 	Control Control          `yaml:"control"`
 	Logger  *Logger          `yaml:"logger,omitempty"`
 	Slices  map[string]Slice `yaml:"slices"`
+	Pfcp    netip.Addr       `yaml:"pfcp"`
 }
 
 type Control struct {
