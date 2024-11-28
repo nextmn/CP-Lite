@@ -7,6 +7,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"net/netip"
 	"time"
 
@@ -68,5 +69,70 @@ func (p *PFCPServer) Start(ctx context.Context) error {
 		}
 	}
 	logrus.Info("PFCP Associations complete")
+	return nil
+}
+
+func (p *PFCPServer) CreateSession(ue netip.Addr, uplinkTeid uint32, downlinkTeid uint32, upfI netip.Addr, gNB netip.Addr, slice string) error {
+	a, ok := p.associations[upfI]
+	if !ok {
+		return fmt.Errorf("Could not create PFCP Session: not associated with UPF")
+	}
+	// TODO: don't hardcode pdr/far ids
+	pdrIes := []*ie.IE{
+		// uplink
+		ie.NewCreatePDR(ie.NewPDRID(1), ie.NewPrecedence(255),
+			ie.NewPDI(
+				ie.NewSourceInterface(ie.SrcInterfaceAccess),
+				ie.NewFTEID(0x01, uplinkTeid, upfI.AsSlice(), nil, 0), // ipv4: 0x01
+				ie.NewNetworkInstance(slice),
+				ie.NewUEIPAddress(0x02, ue.String(), "", 0, 0), // ipv4: 0x02
+			),
+			ie.NewOuterHeaderRemoval(0x00, 0), // remove gtp-u/udp/ipv4: 0x00
+		),
+		// downlink
+		ie.NewCreatePDR(ie.NewPDRID(2), ie.NewPrecedence(255),
+			ie.NewPDI(ie.NewSourceInterface(ie.SrcInterfaceCore),
+				ie.NewNetworkInstance(slice),
+				ie.NewUEIPAddress(0x02, ue.String(), "", 0, 0), // ipv4: 0x02
+			),
+		),
+	}
+	farIes := []*ie.IE{
+		// uplink
+		ie.NewCreateFAR(ie.NewFARID(1),
+			ie.NewApplyAction(0x01), // FORW
+			ie.NewForwardingParameters(
+				ie.NewDestinationInterface(ie.DstInterfaceCore),
+				ie.NewNetworkInstance(slice),
+			),
+		),
+		// downlink
+		ie.NewCreateFAR(ie.NewFARID(2),
+			ie.NewApplyAction(0x01), // FORW
+			ie.NewForwardingParameters(
+				ie.NewDestinationInterface(ie.DstInterfaceAccess),
+				ie.NewNetworkInstance(slice),
+			),
+			// outer header creation
+			ie.NewOuterHeaderCreation(
+				0x01, // GTP/UDP/IPv4
+				downlinkTeid,
+				gNB.String(),
+				"", 0, 0, 0,
+			),
+		),
+	}
+	pdrs, err, _, _ := pfcp.NewPDRMap(pdrIes)
+	if err != nil {
+		return err
+	}
+	fars, err, _, _ := pfcp.NewFARMap(farIes)
+	if err != nil {
+		return err
+	}
+	_, err = a.CreateSession(nil, pdrs, fars)
+	if err != nil {
+		return err
+	}
 	return nil
 }

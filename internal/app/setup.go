@@ -18,11 +18,12 @@ type Setup struct {
 }
 
 func NewSetup(config *config.CPConfig) *Setup {
-	ps := NewPduSessions(config.Control.Uri, config.Slices, "go-github-nextmn-cp-lite")
+	pfcp := NewPFCPServer(config.Pfcp, config.Slices)
+	ps := NewPduSessions(config.Control.Uri, config.Slices, pfcp, "go-github-nextmn-cp-lite")
 	return &Setup{
 		config:           config,
 		httpServerEntity: NewHttpServerEntity(config.Control.BindAddr, ps),
-		pfcp:             NewPFCPServer(config.Pfcp, config.Slices),
+		pfcp:             pfcp,
 	}
 }
 func (s *Setup) Init(ctx context.Context) error {

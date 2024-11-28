@@ -81,6 +81,7 @@ type PduSessions struct {
 	UserAgent      string
 	Slices         map[string]config.Slice
 	Pools          map[string]*Pool
+	pfcp           *PFCPServer
 }
 
 type PduSession struct {
@@ -90,7 +91,7 @@ type PduSession struct {
 	DownlinkTeid uint32
 }
 
-func NewPduSessions(control jsonapi.ControlURI, slices map[string]config.Slice, userAgent string) *PduSessions {
+func NewPduSessions(control jsonapi.ControlURI, slices map[string]config.Slice, pfcp *PFCPServer, userAgent string) *PduSessions {
 	pools := make(map[string]*Pool)
 	for name, p := range slices {
 		pools[name] = NewPool(p.Pool)
@@ -103,6 +104,7 @@ func NewPduSessions(control jsonapi.ControlURI, slices map[string]config.Slice, 
 		UserAgent:      userAgent,
 		Slices:         slices,
 		Pools:          pools,
+		pfcp:           pfcp,
 	}
 }
 
@@ -228,5 +230,13 @@ func (p *PduSessions) N2EstablishmentResponse(c *gin.Context) {
 		"gtp-uplink-teid":   psStruct.UplinkTeid,
 		"gtp-downlink-teid": psStruct.DownlinkTeid,
 		"gtp-gnb":           psStruct.Gnb,
+		"dnn":               ps.UeInfo.Header.Dnn,
 	}).Info("New PDU Session Established")
+
+	err := p.pfcp.CreateSession(ps.UeInfo.Addr, psStruct.UplinkTeid, psStruct.DownlinkTeid, psStruct.Upf, psStruct.Gnb, ps.UeInfo.Header.Dnn)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, jsonapi.MessageWithError{Message: "could not configure PDR/FAR in UPF", Error: err})
+		return
+	}
+
 }
