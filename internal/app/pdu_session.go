@@ -111,10 +111,17 @@ func (p *PduSessions) EstablishmentRequest(c *gin.Context) {
 	logrus.WithFields(logrus.Fields{
 		"ue":  ps.Ue.String(),
 		"gnb": ps.Gnb.String(),
+		"dnn": ps.Dnn,
 	}).Info("New PDU Session establishment Request")
 
 	// allocate new ue ip addr
-	UeIpAddr, err := p.Pools[ps.Dnn].Next()
+	pool, ok := p.Pools[ps.Dnn]
+	if !ok {
+		logrus.Error("unknown pool")
+		c.JSON(http.StatusInternalServerError, jsonapi.MessageWithError{Message: "unknown pool", Error: nil})
+		return
+	}
+	UeIpAddr, err := pool.Next()
 	if err != nil {
 		logrus.WithError(err).Error("no address available in pool")
 		c.JSON(http.StatusInternalServerError, jsonapi.MessageWithError{Message: "no address available in pool", Error: err})
