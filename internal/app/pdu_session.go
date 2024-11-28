@@ -7,11 +7,14 @@ package app
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/netip"
 	"sync"
+	"time"
 
 	"github.com/nextmn/cp-lite/internal/config"
 
@@ -72,6 +75,7 @@ func (p *Pool) Next() (netip.Addr, error) {
 
 type PduSessions struct {
 	PduSessionsMap sync.Map // key: UE 5G IP ; value: PduSession
+	UpfMap         sync.Map // Upfipaddr : UpfTeids
 	Client         http.Client
 	Control        jsonapi.ControlURI
 	UserAgent      string
@@ -93,12 +97,17 @@ func NewPduSessions(control jsonapi.ControlURI, slices map[string]config.Slice, 
 	}
 	return &PduSessions{
 		PduSessionsMap: sync.Map{},
+		UpfMap:         sync.Map{},
 		Client:         http.Client{},
 		Control:        control,
 		UserAgent:      userAgent,
 		Slices:         slices,
 		Pools:          pools,
 	}
+}
+
+type UpfTeids struct {
+	Teids sync.Map // teid: ue 5G ipaddr
 }
 
 func (p *PduSessions) EstablishmentRequest(c *gin.Context) {
@@ -127,10 +136,37 @@ func (p *PduSessions) EstablishmentRequest(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, jsonapi.MessageWithError{Message: "no address available in pool", Error: err})
 		return
 	}
+
+	upf := p.Slices[ps.Dnn].Upfs[0]
+	upfTeids, ok := p.UpfMap.Load(upf)
+	if !ok {
+		p.UpfMap.Store(upf, &UpfTeids{})
+	}
+	ctxTimeout, cancel := context.WithTimeout(c, 100*time.Millisecond)
+	defer cancel()
+	done := false
+	var teid uint32 = 0
+	for !done {
+		select {
+		case <-ctxTimeout.Done():
+			logrus.Error("could not create uplink TEID")
+			c.JSON(http.StatusInternalServerError, jsonapi.MessageWithError{Message: "could not create uplink TEID", Error: nil})
+			return
+		default:
+			teid = rand.Uint32()
+			if teid == 0 {
+				break // bad luck :(
+			}
+			if _, loaded := upfTeids.(*UpfTeids).Teids.LoadOrStore(teid, UeIpAddr); !loaded {
+				done = true
+				break
+			}
+		}
+	}
 	// allocate uplink teid
 	pduSession := PduSession{
-		Upf:        p.Slices[ps.Dnn].Upfs[0],
-		UplinkTeid: 0x4321, // TODO: change me
+		Upf:        upf,
+		UplinkTeid: teid,
 	}
 
 	p.PduSessionsMap.Store(UeIpAddr, pduSession)
