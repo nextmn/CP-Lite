@@ -28,8 +28,9 @@ type PFCPServer struct {
 
 func NewPFCPServer(addr netip.Addr, slices map[string]config.Slice) *PFCPServer {
 	return &PFCPServer{
-		srv:    pfcp.NewPFCPEntityCP(addr.String(), addr.String()),
-		slices: slices,
+		srv:          pfcp.NewPFCPEntityCP(addr.String(), addr.String()),
+		slices:       slices,
+		associations: make(map[netip.Addr]pfcpapi.PFCPAssociationInterface),
 	}
 }
 
