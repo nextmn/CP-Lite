@@ -115,13 +115,12 @@ func (p *PFCPServer) CreateSession(ue netip.Addr, uplinkTeid uint32, downlinkTei
 			ie.NewForwardingParameters(
 				ie.NewDestinationInterface(ie.DstInterfaceAccess),
 				ie.NewNetworkInstance(slice),
-			),
-			// outer header creation
-			ie.NewOuterHeaderCreation(
-				0x01, // GTP/UDP/IPv4
-				downlinkTeid,
-				gNB.String(),
-				"", 0, 0, 0,
+				ie.NewOuterHeaderCreation(
+					0x01, // GTP/UDP/IPv4
+					downlinkTeid,
+					gNB.String(),
+					"", 0, 0, 0,
+				),
 			),
 		),
 	}
