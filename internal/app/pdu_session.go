@@ -240,6 +240,7 @@ func (p *PduSessions) N2EstablishmentResponse(c *gin.Context) {
 
 	err := p.pfcp.CreateSession(ps.UeInfo.Addr, psStruct.UplinkTeid, psStruct.DownlinkTeid, psStruct.Upf, psStruct.Gnb, ps.UeInfo.Header.Dnn)
 	if err != nil {
+		logrus.WithError(err).Error("Could not configure PDR/FAR in UPF")
 		c.JSON(http.StatusInternalServerError, jsonapi.MessageWithError{Message: "could not configure PDR/FAR in UPF", Error: err})
 		return
 	}
