@@ -2,5 +2,17 @@ control:
   uri: "http://192.0.2.3:8080"
   bind-addr: "192.0.2.3:8080"
 
+pfcp: "203.0.113.1"
+
+slices:
+  nextmn-lite:
+    pool: "10.0.0.0/24"
+    upfs:
+      - node-id: "203.0.113.2" # only the first upf is used for now
+        interfaces:
+          - type: "N3"
+            addr: "198.51.100.11"
+
+
 logger:
-  level: "debug"
+  level: "trace"
