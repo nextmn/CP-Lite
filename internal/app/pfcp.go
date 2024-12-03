@@ -103,7 +103,7 @@ func (p *PFCPServer) CreateSession(ue netip.Addr, uplinkTeid uint32, downlinkTei
 	farIes := []*ie.IE{
 		// uplink
 		ie.NewCreateFAR(ie.NewFARID(1),
-			ie.NewApplyAction(0x01), // FORW
+			ie.NewApplyAction(0x02), // FORW
 			ie.NewForwardingParameters(
 				ie.NewDestinationInterface(ie.DstInterfaceCore),
 				ie.NewNetworkInstance(slice),
@@ -111,7 +111,7 @@ func (p *PFCPServer) CreateSession(ue netip.Addr, uplinkTeid uint32, downlinkTei
 		),
 		// downlink
 		ie.NewCreateFAR(ie.NewFARID(2),
-			ie.NewApplyAction(0x01), // FORW
+			ie.NewApplyAction(0x02), // FORW
 			ie.NewForwardingParameters(
 				ie.NewDestinationInterface(ie.DstInterfaceAccess),
 				ie.NewNetworkInstance(slice),
