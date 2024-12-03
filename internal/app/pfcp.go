@@ -89,6 +89,7 @@ func (p *PFCPServer) CreateSession(ue netip.Addr, uplinkTeid uint32, downlinkTei
 				ie.NewUEIPAddress(0x02, ue.String(), "", 0, 0), // ipv4: 0x02
 			),
 			ie.NewOuterHeaderRemoval(0x00, 0), // remove gtp-u/udp/ipv4: 0x00
+			ie.NewFARID(1),
 		),
 		// downlink
 		ie.NewCreatePDR(ie.NewPDRID(2), ie.NewPrecedence(255),
@@ -96,6 +97,7 @@ func (p *PFCPServer) CreateSession(ue netip.Addr, uplinkTeid uint32, downlinkTei
 				ie.NewNetworkInstance(slice),
 				ie.NewUEIPAddress(0x02, ue.String(), "", 0, 0), // ipv4: 0x02
 			),
+			ie.NewFARID(2),
 		),
 	}
 	farIes := []*ie.IE{
