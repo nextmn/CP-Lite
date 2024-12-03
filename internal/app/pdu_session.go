@@ -128,7 +128,9 @@ func (p *PduSessions) EstablishmentRequest(c *gin.Context) {
 	// allocate new ue ip addr
 	pool, ok := p.Pools[ps.Dnn]
 	if !ok {
-		logrus.Error("unknown pool")
+		logrus.WithFields(logrus.Fields{
+			"dnn": ps.Dnn,
+		}).Error("unknown pool")
 		c.JSON(http.StatusInternalServerError, jsonapi.MessageWithError{Message: "unknown pool", Error: nil})
 		return
 	}
