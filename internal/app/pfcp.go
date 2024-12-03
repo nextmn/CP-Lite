@@ -59,21 +59,21 @@ func (p *PFCPServer) Start(ctx context.Context) error {
 	}
 	for _, slice := range p.slices {
 		for _, upf := range slice.Upfs {
-			association, err := p.srv.NewEstablishedPFCPAssociation(ie.NewNodeIDHeuristic(upf.String()))
+			association, err := p.srv.NewEstablishedPFCPAssociation(ie.NewNodeIDHeuristic(upf.NodeID.String()))
 			if err != nil {
 				logrus.WithError(err).WithFields(logrus.Fields{
-					"upf": upf,
+					"upf": upf.NodeID,
 				}).Error("Could not perform PFCP association")
 				return err
 			}
-			p.associations[upf] = association
+			p.associations[upf.NodeID] = association
 		}
 	}
 	logrus.Info("PFCP Associations complete")
 	return nil
 }
 
-func (p *PFCPServer) CreateSession(ue netip.Addr, uplinkTeid uint32, downlinkTeid uint32, upfI netip.Addr, gNB netip.Addr, slice string) error {
+func (p *PFCPServer) CreateSession(ue netip.Addr, uplinkTeid uint32, downlinkTeid uint32, upfI netip.Addr, upfIn3 netip.Addr, gNB netip.Addr, slice string) error {
 	a, ok := p.associations[upfI]
 	if !ok {
 		return fmt.Errorf("Could not create PFCP Session: not associated with UPF")
@@ -84,7 +84,7 @@ func (p *PFCPServer) CreateSession(ue netip.Addr, uplinkTeid uint32, downlinkTei
 		ie.NewCreatePDR(ie.NewPDRID(1), ie.NewPrecedence(255),
 			ie.NewPDI(
 				ie.NewSourceInterface(ie.SrcInterfaceAccess),
-				ie.NewFTEID(0x01, uplinkTeid, upfI.AsSlice(), nil, 0), // ipv4: 0x01
+				ie.NewFTEID(0x01, uplinkTeid, upfIn3.AsSlice(), nil, 0), // ipv4: 0x01
 				ie.NewNetworkInstance(slice),
 				ie.NewUEIPAddress(0x02, ue.String(), "", 0, 0), // ipv4: 0x02
 			),

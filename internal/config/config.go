@@ -45,5 +45,15 @@ type Control struct {
 
 type Slice struct {
 	Pool netip.Prefix `yaml:"pool"`
-	Upfs []netip.Addr `yaml:"upfs"`
+	Upfs []Upf        `yaml:"upfs"`
+}
+
+type Upf struct {
+	NodeID     netip.Addr  `yaml:"node-id"`
+	Interfaces []Interface `yaml:"interfaces"`
+}
+
+type Interface struct {
+	Type string     `yaml:"type"`
+	Addr netip.Addr `yaml:"addr"`
 }

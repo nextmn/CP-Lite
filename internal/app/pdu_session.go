@@ -13,6 +13,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/netip"
+	"strings"
 	"sync"
 	"time"
 
@@ -86,6 +87,7 @@ type PduSessions struct {
 
 type PduSession struct {
 	Upf          netip.Addr
+	UpfN3        netip.Addr
 	UplinkTeid   uint32
 	Gnb          netip.Addr
 	DownlinkTeid uint32
@@ -143,9 +145,9 @@ func (p *PduSessions) EstablishmentRequest(c *gin.Context) {
 
 	upf := p.Slices[ps.Dnn].Upfs[0]
 	upfTeids := &UpfTeids{}
-	l, ok := p.UpfMap.Load(upf)
+	l, ok := p.UpfMap.Load(upf.NodeID)
 	if !ok {
-		p.UpfMap.Store(upf, upfTeids)
+		p.UpfMap.Store(upf.NodeID, upfTeids)
 	} else {
 		upfTeids = l.(*UpfTeids)
 	}
@@ -170,9 +172,24 @@ func (p *PduSessions) EstablishmentRequest(c *gin.Context) {
 			}
 		}
 	}
+	var iface netip.Addr
+	ifacedone := false
+	for _, i := range upf.Interfaces {
+		if strings.ToLower(i.Type) == "n3" {
+			iface = i.Addr
+			ifacedone = true
+			break
+		}
+	}
+	if !ifacedone {
+		logrus.Error("could not find n3 interface on first upf")
+		c.JSON(http.StatusInternalServerError, jsonapi.MessageWithError{Message: "could not find n3 interface on first upf", Error: nil})
+		return
+	}
 	// allocate uplink teid
 	pduSession := PduSession{
-		Upf:        upf,
+		Upf:        upf.NodeID,
+		UpfN3:      iface,
 		UplinkTeid: teid,
 	}
 
@@ -185,7 +202,7 @@ func (p *PduSessions) EstablishmentRequest(c *gin.Context) {
 			Header: ps,
 			Addr:   UeIpAddr,
 		},
-		Upf:        pduSession.Upf,
+		Upf:        pduSession.UpfN3,
 		UplinkTeid: pduSession.UplinkTeid,
 	}
 	reqBody, err := json.Marshal(n2PsReq)
@@ -231,14 +248,15 @@ func (p *PduSessions) N2EstablishmentResponse(c *gin.Context) {
 		"ue":                ps.UeInfo.Header.Ue.String(),
 		"gnb":               ps.UeInfo.Header.Gnb.String(),
 		"ip-addr":           ps.UeInfo.Addr,
-		"gtp-upf":           psStruct.Upf,
+		"upf-pfcp":          psStruct.Upf,
+		"gtp-upf":           psStruct.UpfN3,
 		"gtp-uplink-teid":   psStruct.UplinkTeid,
 		"gtp-downlink-teid": psStruct.DownlinkTeid,
 		"gtp-gnb":           psStruct.Gnb,
 		"dnn":               ps.UeInfo.Header.Dnn,
 	}).Info("New PDU Session Established")
 
-	err := p.pfcp.CreateSession(ps.UeInfo.Addr, psStruct.UplinkTeid, psStruct.DownlinkTeid, psStruct.Upf, psStruct.Gnb, ps.UeInfo.Header.Dnn)
+	err := p.pfcp.CreateSession(ps.UeInfo.Addr, psStruct.UplinkTeid, psStruct.DownlinkTeid, psStruct.Upf, psStruct.UpfN3, psStruct.Gnb, ps.UeInfo.Header.Dnn)
 	if err != nil {
 		logrus.WithError(err).Error("Could not configure PDR/FAR in UPF")
 		c.JSON(http.StatusInternalServerError, jsonapi.MessageWithError{Message: "could not configure PDR/FAR in UPF", Error: err})
