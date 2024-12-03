@@ -142,9 +142,12 @@ func (p *PduSessions) EstablishmentRequest(c *gin.Context) {
 	}
 
 	upf := p.Slices[ps.Dnn].Upfs[0]
-	upfTeids, ok := p.UpfMap.Load(upf)
+	upfTeids := &UpfTeids{}
+	l, ok := p.UpfMap.Load(upf)
 	if !ok {
-		p.UpfMap.Store(upf, &UpfTeids{})
+		p.UpfMap.Store(upf, upfTeids)
+	} else {
+		upfTeids = l.(*UpfTeids)
 	}
 	ctxTimeout, cancel := context.WithTimeout(c, 100*time.Millisecond)
 	defer cancel()
@@ -161,7 +164,7 @@ func (p *PduSessions) EstablishmentRequest(c *gin.Context) {
 			if teid == 0 {
 				break // bad luck :(
 			}
-			if _, loaded := upfTeids.(*UpfTeids).Teids.LoadOrStore(teid, UeIpAddr); !loaded {
+			if _, loaded := upfTeids.Teids.LoadOrStore(teid, UeIpAddr); !loaded {
 				done = true
 				break
 			}
