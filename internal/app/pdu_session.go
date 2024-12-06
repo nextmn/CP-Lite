@@ -83,10 +83,6 @@ func NewPduSessions(control jsonapi.ControlURI, slices map[string]config.Slice, 
 	}
 }
 
-type UpfTeids struct {
-	Teids sync.Map // teid: ue 5G ipaddr
-}
-
 func (p *PduSessions) EstablishmentRequest(c *gin.Context) {
 	var ps n1n2.PduSessionEstabReqMsg
 	if err := c.BindJSON(&ps); err != nil {
@@ -139,7 +135,7 @@ func (p *PduSessions) EstablishmentRequest(c *gin.Context) {
 			if teid == 0 {
 				break // bad luck :(
 			}
-			if _, loaded := upfTeids.Teids.LoadOrStore(teid, UeIpAddr); !loaded {
+			if _, loaded := upfTeids.Teids.LoadOrStore(teid, struct{}); !loaded {
 				done = true
 				break
 			}
