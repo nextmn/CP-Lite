@@ -8,29 +8,30 @@ package app
 import (
 	"context"
 
+	"github.com/nextmn/cp-lite/internal/amf"
 	"github.com/nextmn/cp-lite/internal/config"
+	"github.com/nextmn/cp-lite/internal/smf"
 )
 
 type Setup struct {
-	config           *config.CPConfig
-	httpServerEntity *HttpServerEntity
-	pfcp             *PFCPServer
+	config *config.CPConfig
+	amf    *amf.Amf
+	smf    *smf.Smf
 }
 
 func NewSetup(config *config.CPConfig) *Setup {
-	pfcp := NewPFCPServer(config.Pfcp, config.Slices)
-	ps := NewPduSessions(config.Control.Uri, config.Slices, pfcp, "go-github-nextmn-cp-lite")
+	smf := smf.NewSmf(config.Pfcp, config.Slices)
 	return &Setup{
-		config:           config,
-		httpServerEntity: NewHttpServerEntity(config.Control.BindAddr, ps),
-		pfcp:             pfcp,
+		config: config,
+		amf:    amf.NewAmf(config.Control.BindAddr, config.Control.Uri, "go-github-nextmn-cp-lite", smf),
+		smf:    smf,
 	}
 }
 func (s *Setup) Init(ctx context.Context) error {
-	if err := s.pfcp.Start(ctx); err != nil {
+	if err := s.smf.Start(ctx); err != nil {
 		return err
 	}
-	if err := s.httpServerEntity.Start(); err != nil {
+	if err := s.amf.Start(ctx); err != nil {
 		return err
 	}
 	return nil
@@ -48,6 +49,5 @@ func (s *Setup) Run(ctx context.Context) error {
 }
 
 func (s *Setup) Exit() error {
-	s.httpServerEntity.Stop()
 	return nil
 }

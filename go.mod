@@ -5,7 +5,7 @@ go 1.22.7
 require (
 	github.com/adrg/xdg v0.5.3
 	github.com/gin-gonic/gin v1.10.0
-	github.com/nextmn/go-pfcp-networking v0.0.39
+	github.com/nextmn/go-pfcp-networking v0.0.40
 	github.com/nextmn/json-api v0.0.14
 	github.com/nextmn/logrus-formatter v0.0.1
 	github.com/sirupsen/logrus v1.9.3
@@ -38,9 +38,9 @@ require (
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	golang.org/x/arch v0.12.0 // indirect
-	golang.org/x/crypto v0.29.0 // indirect
-	golang.org/x/net v0.31.0 // indirect
-	golang.org/x/sys v0.27.0 // indirect
-	golang.org/x/text v0.20.0 // indirect
+	golang.org/x/crypto v0.30.0 // indirect
+	golang.org/x/net v0.32.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
 	google.golang.org/protobuf v1.35.2 // indirect
 )
