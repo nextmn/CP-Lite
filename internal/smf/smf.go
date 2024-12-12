@@ -26,6 +26,7 @@ type Smf struct {
 	slices  *SlicesMap
 	srv     *pfcp.PFCPEntityCP
 	started bool
+	closed  chan struct{}
 }
 
 func NewSmf(addr netip.Addr, slices map[string]config.Slice) *Smf {
@@ -35,12 +36,14 @@ func NewSmf(addr netip.Addr, slices map[string]config.Slice) *Smf {
 		srv:    pfcp.NewPFCPEntityCP(addr.String(), addr),
 		slices: s,
 		upfs:   upfs,
+		closed: make(chan struct{}),
 	}
 }
 
 func (smf *Smf) Start(ctx context.Context) error {
 	logrus.Info("Starting PFCP Server")
 	go func() {
+		defer close(smf.closed)
 		err := smf.srv.ListenAndServeContext(ctx)
 		if err != nil {
 			logrus.WithError(err).Trace("PFCP server stopped")
@@ -203,4 +206,12 @@ func (smf *Smf) CreateSessionUplink(ctx context.Context, ueCtrl jsonapi.ControlU
 	// store session
 	slice.sessions.Store(ueCtrl, &session)
 	return &session, nil
+}
+func (smf *Smf) WaitShutdown(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-smf.closed:
+		return nil
+	}
 }

@@ -7,6 +7,7 @@ package app
 
 import (
 	"context"
+	"time"
 
 	"github.com/nextmn/cp-lite/internal/amf"
 	"github.com/nextmn/cp-lite/internal/config"
@@ -27,27 +28,20 @@ func NewSetup(config *config.CPConfig) *Setup {
 		smf:    smf,
 	}
 }
-func (s *Setup) Init(ctx context.Context) error {
+
+func (s *Setup) Run(ctx context.Context) error {
 	if err := s.smf.Start(ctx); err != nil {
 		return err
 	}
 	if err := s.amf.Start(ctx); err != nil {
 		return err
 	}
-	return nil
-}
-
-func (s *Setup) Run(ctx context.Context) error {
-	defer s.Exit()
-	if err := s.Init(ctx); err != nil {
-		return err
-	}
 	select {
 	case <-ctx.Done():
-		return nil
+		ctxShutdown, cancel := context.WithTimeout(ctx, 1*time.Second)
+		defer cancel()
+		s.amf.WaitShutdown(ctxShutdown)
+		s.smf.WaitShutdown(ctxShutdown)
 	}
-}
-
-func (s *Setup) Exit() error {
 	return nil
 }

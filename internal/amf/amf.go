@@ -27,6 +27,7 @@ type Amf struct {
 	userAgent string
 	smf       *smf.Smf
 	srv       *http.Server
+	closed    chan struct{}
 }
 
 func NewAmf(bindAddr netip.AddrPort, control jsonapi.ControlURI, userAgent string, smf *smf.Smf) *Amf {
@@ -35,6 +36,7 @@ func NewAmf(bindAddr netip.AddrPort, control jsonapi.ControlURI, userAgent strin
 		client:    http.Client{},
 		userAgent: userAgent,
 		smf:       smf,
+		closed:    make(chan struct{}),
 	}
 	// TODO: gin.SetMode(gin.DebugMode) / gin.SetMode(gin.ReleaseMode) depending on log level
 	r := gin.Default()
@@ -65,17 +67,26 @@ func (amf *Amf) Start(ctx context.Context) error {
 		}
 	}(l)
 	go func(ctx context.Context) {
+		defer close(amf.closed)
 		select {
 		case <-ctx.Done():
-			ctxShutdown, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+			ctxShutdown, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 			defer cancel()
 			if err := amf.srv.Shutdown(ctxShutdown); err != nil {
 				logrus.WithError(err).Info("HTTP Server Shutdown")
 			}
 		}
 	}(ctx)
-
 	return nil
+}
+
+func (amf *Amf) WaitShutdown(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-amf.closed:
+		return nil
+	}
 }
 
 // get status of the controller
