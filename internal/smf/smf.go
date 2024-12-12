@@ -39,7 +39,7 @@ func NewSmf(addr netip.Addr, slices map[string]config.Slice) *Smf {
 }
 
 func (smf *Smf) Start(ctx context.Context) error {
-	logrus.Info("PFCP Server started")
+	logrus.Info("Starting PFCP Server")
 	go func() {
 		err := smf.srv.ListenAndServeContext(ctx)
 		if err != nil {
@@ -48,18 +48,9 @@ func (smf *Smf) Start(ctx context.Context) error {
 	}()
 	ctxTimeout, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
 	defer cancel()
-	done := false
-	for !done {
-		select {
-		case <-time.After(10 * time.Millisecond): //FIXME: this should not be required
-			if smf.srv.RecoveryTimeStamp() != nil {
-				done = true
-				break
-			}
-		case <-ctxTimeout.Done():
-			return ctx.Err()
-
-		}
+	if err := smf.srv.WaitReady(ctxTimeout); err != nil {
+		logrus.WithError(err).Fatal("Could not start PFCP server")
+		return err
 	}
 	var failure error
 	smf.upfs.Range(func(key, value any) bool {
