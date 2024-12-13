@@ -8,7 +8,6 @@ package smf
 import (
 	"context"
 	"net/netip"
-	"strings"
 	"sync"
 
 	"github.com/nextmn/cp-lite/internal/config"
@@ -45,7 +44,7 @@ type Upf struct {
 
 func (upf *Upf) GetN3() (netip.Addr, error) {
 	for addr, iface := range upf.interfaces {
-		if strings.ToLower(iface.Type) == "n3" {
+		if iface.IsN3() {
 			return addr, nil
 		}
 	}
@@ -54,7 +53,7 @@ func (upf *Upf) GetN3() (netip.Addr, error) {
 
 func (upf *Upf) GetN6() (netip.Addr, error) {
 	for addr, iface := range upf.interfaces {
-		if strings.ToLower(iface.Type) == "n6" {
+		if iface.IsN6() {
 			return addr, nil
 		}
 	}

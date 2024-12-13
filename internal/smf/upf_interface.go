@@ -7,25 +7,47 @@ package smf
 
 import (
 	"net/netip"
+	"strings"
 
 	"github.com/nextmn/cp-lite/internal/config"
 )
 
 type UpfInterface struct {
 	Teids *TEIDsPool
-	Type  string
+	Types []string
 }
 
 func NewUpfInterface(t string) *UpfInterface {
 	return &UpfInterface{
 		Teids: NewTEIDsPool(),
-		Type:  t,
+		Types: []string{t},
 	}
 }
 func NewUpfInterfaceMap(ifaces []config.Interface) map[netip.Addr]*UpfInterface {
 	r := make(map[netip.Addr]*UpfInterface)
 	for _, v := range ifaces {
+		if i, ok := r[v.Addr]; ok {
+			i.Types = append(i.Types, v.Type)
+		}
 		r[v.Addr] = NewUpfInterface(v.Type)
 	}
 	return r
+}
+
+func (iface *UpfInterface) IsN3() bool {
+	for _, t := range iface.Types {
+		if strings.ToLower(t) == "n3" {
+			return true
+		}
+	}
+	return false
+}
+
+func (iface *UpfInterface) IsN6() bool {
+	for _, t := range iface.Types {
+		if strings.ToLower(t) == "n6" {
+			return true
+		}
+	}
+	return false
 }
