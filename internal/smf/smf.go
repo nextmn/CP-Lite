@@ -44,9 +44,8 @@ func (smf *Smf) Start(ctx context.Context) error {
 	logrus.Info("Starting PFCP Server")
 	go func() {
 		defer close(smf.closed)
-		err := smf.srv.ListenAndServeContext(ctx)
-		if err != nil {
-			logrus.WithError(err).Trace("PFCP server stopped")
+		if err := smf.srv.ListenAndServeContext(ctx); err != nil {
+			logrus.WithError(err).Info("PFCP server stopped")
 		}
 	}()
 	ctxTimeout, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
