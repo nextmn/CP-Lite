@@ -27,9 +27,10 @@ func NewUpfInterfaceMap(ifaces []config.Interface) map[netip.Addr]*UpfInterface 
 	r := make(map[netip.Addr]*UpfInterface)
 	for _, v := range ifaces {
 		if i, ok := r[v.Addr]; ok {
-			i.Types = append(i.Types, v.Type)
+			r[v.Addr].Types = append(i.Types, v.Type)
+		} else {
+			r[v.Addr] = NewUpfInterface(v.Type)
 		}
-		r[v.Addr] = NewUpfInterface(v.Type)
 	}
 	return r
 }
@@ -43,9 +44,9 @@ func (iface *UpfInterface) IsN3() bool {
 	return false
 }
 
-func (iface *UpfInterface) IsN6() bool {
+func (iface *UpfInterface) IsN9() bool {
 	for _, t := range iface.Types {
-		if strings.ToLower(t) == "n6" {
+		if strings.ToLower(t) == "n9" {
 			return true
 		}
 	}

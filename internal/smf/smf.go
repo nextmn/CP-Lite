@@ -108,7 +108,7 @@ func (smf *Smf) CreateSessionDownlink(ctx context.Context, ueCtrl jsonapi.Contro
 		if i == 0 {
 			upf_iface, err = upf.GetN3()
 		} else if i != len(slice.Upfs)-1 {
-			upf_iface, err = upf.GetN6()
+			upf_iface, err = upf.GetN9()
 		}
 		if err != nil {
 			return nil, err
@@ -158,11 +158,24 @@ func (smf *Smf) CreateSessionUplink(ctx context.Context, ueCtrl jsonapi.ControlU
 	var upfa_iface netip.Addr
 	if len(slice.Upfs) == 1 {
 		upfa_iface, err = upfa.GetN3()
+		if err != nil {
+			logrus.WithError(err).WithFields(logrus.Fields{
+				"upf":   upfa_ctrl,
+				"iface": "n3",
+				"type":  "anchor",
+			}).Error("Could not prepare session uplink path")
+			return nil, err
+		}
 	} else {
-		upfa_iface, err = upfa.GetN6()
-	}
-	if err != nil {
-		return nil, err
+		upfa_iface, err = upfa.GetN9()
+		if err != nil {
+			logrus.WithError(err).WithFields(logrus.Fields{
+				"upf":   upfa_ctrl,
+				"iface": "n9",
+				"type":  "anchor",
+			}).Error("Could not prepare session uplink path")
+			return nil, err
+		}
 	}
 	last_fteid, err := upfa.CreateUplinkAnchor(ctx, ueIpAddr, dnn, upfa_iface)
 	if err != nil {
@@ -183,17 +196,32 @@ func (smf *Smf) CreateSessionUplink(ctx context.Context, ueCtrl jsonapi.ControlU
 		var upf_iface netip.Addr
 		if i == 0 {
 			upf_iface, err = upf.GetN3()
+			if err != nil {
+				logrus.WithError(err).WithFields(logrus.Fields{
+					"upf":   upf_ctrl,
+					"iface": "n3",
+					"type":  "inter",
+				}).Error("Could not prepare session uplink path")
+				return nil, err
+			}
 		} else {
-			upf_iface, err = upf.GetN6()
-		}
-		if err != nil {
-			return nil, err
+			upf_iface, err = upf.GetN9()
+			if err != nil {
+				logrus.WithError(err).WithFields(logrus.Fields{
+					"upf":   upf_ctrl,
+					"iface": "n9",
+					"type":  "inter",
+				}).Error("Could not prepare session uplink path")
+				return nil, err
+			}
 		}
 		last_fteid, err = upf.CreateUplinkIntermediate(ctx, ueIpAddr, dnn, upf_iface, last_fteid)
 		if err != nil {
+			logrus.WithError(err).Error("Could not create uplink intermediate")
 			return nil, err
 		}
 		if err := upf.CreateSession(ueIpAddr); err != nil {
+			logrus.WithError(err).Error("Could not create session uplink")
 			return nil, err
 		}
 	}
