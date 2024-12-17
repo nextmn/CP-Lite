@@ -6,9 +6,47 @@
 package smf
 
 import (
+	"net/netip"
 	"sync"
+
+	"github.com/nextmn/json-api/jsonapi"
 )
 
+type Sessions struct {
+	s []*PduSessionN3
+}
+
 type SessionsMap struct {
-	sync.Map // key: UE Ctrl ; value: *PduSessionN3
+	m map[jsonapi.ControlURI]*Sessions
+	sync.RWMutex
+}
+
+func NewSessionsMap() *SessionsMap {
+	return &SessionsMap{
+		m: make(map[jsonapi.ControlURI]*Sessions),
+	}
+}
+
+func (s *SessionsMap) Get(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr) (*PduSessionN3, error) {
+	s.RLock()
+	defer s.RUnlock()
+	if sessions, ok := s.m[ueCtrl]; ok {
+		for _, session := range sessions.s {
+			if session.UeIpAddr == ueAddr {
+				return session, nil
+			}
+		}
+	}
+	return nil, ErrPDUSessionNotFound
+}
+
+func (s *SessionsMap) Add(ueCtrl jsonapi.ControlURI, session *PduSessionN3) {
+	s.Lock()
+	defer s.Unlock()
+	m, ok := s.m[ueCtrl]
+	if !ok {
+		s.m[ueCtrl] = &Sessions{s: []*PduSessionN3{session}}
+	} else {
+		m.s = append(m.s, session)
+	}
 }

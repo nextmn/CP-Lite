@@ -101,11 +101,11 @@ func (smf *Smf) Context() context.Context {
 	return context.Background()
 }
 
-func (smf *Smf) CreateSessionDownlink(ueCtrl jsonapi.ControlURI, dnn string, gnb netip.Addr, gnb_teid uint32) (*PduSessionN3, error) {
-	return smf.CreateSessionDownlinkContext(smf.ctx, ueCtrl, dnn, gnb, gnb_teid)
+func (smf *Smf) CreateSessionDownlink(ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn string, gnb netip.Addr, gnb_teid uint32) (*PduSessionN3, error) {
+	return smf.CreateSessionDownlinkContext(smf.ctx, ueCtrl, ueIp, dnn, gnb, gnb_teid)
 }
 
-func (smf *Smf) CreateSessionDownlinkContext(ctx context.Context, ueCtrl jsonapi.ControlURI, dnn string, gnb netip.Addr, gnb_teid uint32) (*PduSessionN3, error) {
+func (smf *Smf) CreateSessionDownlinkContext(ctx context.Context, ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn string, gnb netip.Addr, gnb_teid uint32) (*PduSessionN3, error) {
 	if !smf.started {
 		return nil, ErrSmfNotStarted
 	}
@@ -127,11 +127,10 @@ func (smf *Smf) CreateSessionDownlinkContext(ctx context.Context, ueCtrl jsonapi
 		return nil, ErrDnnNotFound
 	}
 	slice := s.(*Slice)
-	session_any, ok := slice.sessions.Load(ueCtrl)
-	if !ok {
-		return nil, ErrPDUSessionNotFound
+	session, err := slice.sessions.Get(ueCtrl, ueIp)
+	if err != nil {
+		return nil, err
 	}
-	session := session_any.(*PduSessionN3)
 	session.DownlinkFteid = &Fteid{
 		Addr: gnb,
 		Teid: gnb_teid,
@@ -197,10 +196,6 @@ func (smf *Smf) CreateSessionUplinkContext(ctx context.Context, ueCtrl jsonapi.C
 		return nil, ErrDnnNotFound
 	}
 	slice := s.(*Slice)
-	_, ok = slice.sessions.Load(ueCtrl)
-	if ok {
-		return nil, ErrPDUSessionAlreadyExists
-	}
 	// create ue ip addr
 	ueIpAddr, err := slice.Pool.Next()
 	if err != nil {
@@ -294,7 +289,7 @@ func (smf *Smf) CreateSessionUplinkContext(ctx context.Context, ueCtrl jsonapi.C
 		UplinkFteid: last_fteid,
 	}
 	// store session
-	slice.sessions.Store(ueCtrl, &session)
+	slice.sessions.Add(ueCtrl, &session)
 	return &session, nil
 }
 

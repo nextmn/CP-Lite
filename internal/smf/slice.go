@@ -39,6 +39,6 @@ func NewSlice(pool netip.Prefix, upfs []netip.Addr) *Slice {
 	return &Slice{
 		Pool:     NewUeIpPool(pool),
 		Upfs:     upfs,
-		sessions: &SessionsMap{},
+		sessions: NewSessionsMap(),
 	}
 }
