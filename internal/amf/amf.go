@@ -28,6 +28,9 @@ type Amf struct {
 	smf       *smf.Smf
 	srv       *http.Server
 	closed    chan struct{}
+
+	// not exported because must not be modified
+	ctx context.Context
 }
 
 func NewAmf(bindAddr netip.AddrPort, control jsonapi.ControlURI, userAgent string, smf *smf.Smf) *Amf {
@@ -56,6 +59,9 @@ func NewAmf(bindAddr netip.AddrPort, control jsonapi.ControlURI, userAgent strin
 }
 
 func (amf *Amf) Start(ctx context.Context) error {
+	if ctx == nil {
+		return ErrNilCtx
+	}
 	l, err := net.Listen("tcp", amf.srv.Addr)
 	if err != nil {
 		return err
@@ -96,4 +102,11 @@ func Status(c *gin.Context) {
 	}
 	c.Header("Cache-Control", "no-cache")
 	c.JSON(http.StatusOK, status)
+}
+
+func (amf *Amf) Context() context.Context {
+	if amf.ctx != nil {
+		return amf.ctx
+	}
+	return context.Background()
 }

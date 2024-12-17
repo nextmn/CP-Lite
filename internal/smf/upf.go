@@ -40,6 +40,9 @@ type Upf struct {
 	association pfcpapi.PFCPAssociationInterface
 	interfaces  map[netip.Addr]*UpfInterface
 	sessions    map[netip.Addr]*Pfcprules
+
+	// not exported because must not be modified
+	ctx context.Context
 }
 
 func (upf *Upf) GetN3() (netip.Addr, error) {
@@ -68,8 +71,19 @@ func NewUpf(interfaces []config.Interface) *Upf {
 	return &upf
 }
 
-func (upf *Upf) Associate(a pfcpapi.PFCPAssociationInterface) {
+func (upf *Upf) Associate(ctx context.Context, a pfcpapi.PFCPAssociationInterface) error {
+	if ctx == nil {
+		return ErrNilCtx
+	}
+	upf.ctx = ctx
+	// Initialize TeidPools
+	for _, iface := range upf.interfaces {
+		if err := iface.Teids.Init(ctx); err != nil {
+			return err
+		}
+	}
 	upf.association = a
+	return nil
 }
 
 func (upf *Upf) Rules(ueIp netip.Addr) *Pfcprules {
@@ -81,7 +95,21 @@ func (upf *Upf) Rules(ueIp netip.Addr) *Pfcprules {
 	return rules
 }
 
-func (upf *Upf) NextListenFteid(ctx context.Context, listenInterface netip.Addr) (*Fteid, error) {
+func (upf *Upf) NextListenFteid(listenInterface netip.Addr) (*Fteid, error) {
+	return upf.NextListenFteidContext(upf.ctx, listenInterface)
+}
+
+func (upf *Upf) NextListenFteidContext(ctx context.Context, listenInterface netip.Addr) (*Fteid, error) {
+	if ctx == nil || upf.ctx == nil {
+		return nil, ErrNilCtx
+	}
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-upf.ctx.Done():
+		return nil, upf.ctx.Err()
+	default:
+	}
 	iface, ok := upf.interfaces[listenInterface]
 	if !ok {
 		return nil, ErrInterfaceNotFound
@@ -96,8 +124,22 @@ func (upf *Upf) NextListenFteid(ctx context.Context, listenInterface netip.Addr)
 	}, nil
 }
 
-func (upf *Upf) CreateUplinkIntermediate(ctx context.Context, ueIp netip.Addr, dnn string, listenInterface netip.Addr, forwardFteid *Fteid) (*Fteid, error) {
-	listenFteid, err := upf.NextListenFteid(ctx, listenInterface)
+func (upf *Upf) CreateUplinkIntermediate(ueIp netip.Addr, dnn string, listenInterface netip.Addr, forwardFteid *Fteid) (*Fteid, error) {
+	return upf.CreateUplinkIntermediateContext(upf.ctx, ueIp, dnn, listenInterface, forwardFteid)
+}
+
+func (upf *Upf) CreateUplinkIntermediateContext(ctx context.Context, ueIp netip.Addr, dnn string, listenInterface netip.Addr, forwardFteid *Fteid) (*Fteid, error) {
+	if ctx == nil || upf.ctx == nil {
+		return nil, ErrNilCtx
+	}
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-upf.ctx.Done():
+		return nil, upf.ctx.Err()
+	default:
+	}
+	listenFteid, err := upf.NextListenFteidContext(ctx, listenInterface)
 	if err != nil {
 		return nil, err
 	}
@@ -138,8 +180,14 @@ func (upf *Upf) CreateUplinkIntermediateWithFteid(ueIp netip.Addr, dnn string, l
 	// TODO: QER, to avoid wrong gtp size set by F5GC's UPF
 }
 
-func (upf *Upf) CreateUplinkAnchor(ctx context.Context, ueIp netip.Addr, dnn string, listenInterface netip.Addr) (*Fteid, error) {
-	listenFteid, err := upf.NextListenFteid(ctx, listenInterface)
+func (upf *Upf) CreateUplinkAnchor(ueIp netip.Addr, dnn string, listenInterface netip.Addr) (*Fteid, error) {
+	return upf.CreateUplinkAnchorContext(upf.ctx, ueIp, dnn, listenInterface)
+}
+func (upf *Upf) CreateUplinkAnchorContext(ctx context.Context, ueIp netip.Addr, dnn string, listenInterface netip.Addr) (*Fteid, error) {
+	if ctx == nil {
+		return nil, ErrNilCtx
+	}
+	listenFteid, err := upf.NextListenFteidContext(ctx, listenInterface)
 	if err != nil {
 		return nil, err
 	}
@@ -204,8 +252,14 @@ func (upf *Upf) UpdateDownlinkAnchor(ueIp netip.Addr, dnn string, forwardFteid *
 	// TODO: QER, to avoid wrong gtp size set by F5GC's UPF
 }
 
-func (upf *Upf) UpdateDownlinkIntermediate(ctx context.Context, ueIp netip.Addr, dnn string, listenInterface netip.Addr, forwardFteid *Fteid) (*Fteid, error) {
-	listenFteid, err := upf.NextListenFteid(ctx, listenInterface)
+func (upf *Upf) UpdateDownlinkIntermediate(ueIp netip.Addr, dnn string, listenInterface netip.Addr, forwardFteid *Fteid) (*Fteid, error) {
+	return upf.UpdateDownlinkIntermediateContext(upf.ctx, ueIp, dnn, listenInterface, forwardFteid)
+}
+func (upf *Upf) UpdateDownlinkIntermediateContext(ctx context.Context, ueIp netip.Addr, dnn string, listenInterface netip.Addr, forwardFteid *Fteid) (*Fteid, error) {
+	if ctx == nil {
+		return nil, ErrNilCtx
+	}
+	listenFteid, err := upf.NextListenFteidContext(ctx, listenInterface)
 	if err != nil {
 		return nil, err
 	}

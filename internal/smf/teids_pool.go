@@ -14,6 +14,9 @@ import (
 type TEIDsPool struct {
 	teids map[uint32]struct{}
 	sync.Mutex
+
+	// not exported because must not be modified
+	ctx context.Context
 }
 
 func NewTEIDsPool() *TEIDsPool {
@@ -22,7 +25,20 @@ func NewTEIDsPool() *TEIDsPool {
 	}
 }
 
+func (t *TEIDsPool) Init(ctx context.Context) error {
+	if ctx == nil {
+		return ErrNilCtx
+	}
+	t.ctx = ctx
+	return nil
+}
+
+// Returns next TEID from the pool.
+// warning: the pool must first be initialized using `Init(ctx)`
 func (t *TEIDsPool) Next(ctx context.Context) (uint32, error) {
+	if t.ctx == nil || ctx == nil {
+		return 0, ErrNilCtx
+	}
 	t.Lock()
 	defer t.Unlock()
 	var teid uint32 = 0
@@ -30,6 +46,8 @@ func (t *TEIDsPool) Next(ctx context.Context) (uint32, error) {
 		select {
 		case <-ctx.Done():
 			return 0, ctx.Err()
+		case <-t.ctx.Done():
+			return 0, t.ctx.Err()
 		default:
 			teid = rand.Uint32()
 			if teid == 0 {

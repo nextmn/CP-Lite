@@ -22,7 +22,13 @@ func (amf *Amf) N2EstablishmentResponse(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, jsonapi.MessageWithError{Message: "could not deserialize", Error: err})
 		return
 	}
-	pduSession, err := amf.smf.CreateSessionDownlink(c, ps.UeInfo.Header.Ue, ps.UeInfo.Header.Dnn, ps.Gnb, ps.DownlinkTeid)
+	go amf.HandleN2EstablishmentResponse(ps)
+	c.JSON(http.StatusAccepted, jsonapi.Message{Message: "please refer to logs for more information"})
+}
+
+func (amf *Amf) HandleN2EstablishmentResponse(ps n1n2.N2PduSessionRespMsg) {
+	ctx := amf.Context()
+	pduSession, err := amf.smf.CreateSessionDownlinkContext(ctx, ps.UeInfo.Header.Ue, ps.UeInfo.Header.Dnn, ps.Gnb, ps.DownlinkTeid)
 	if err != nil {
 		logrus.WithError(err).WithFields(logrus.Fields{
 			"ue-ip-addr": ps.UeInfo.Addr,
@@ -30,7 +36,6 @@ func (amf *Amf) N2EstablishmentResponse(c *gin.Context) {
 			"gnb":        ps.UeInfo.Header.Gnb,
 			"dnn":        ps.UeInfo.Header.Dnn,
 		}).Error("could not create downlink path")
-		c.JSON(http.StatusInternalServerError, jsonapi.MessageWithError{Message: "could not create downlink path", Error: err})
 		return
 	}
 	logrus.WithFields(logrus.Fields{

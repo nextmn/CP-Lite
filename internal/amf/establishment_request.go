@@ -29,11 +29,16 @@ func (amf *Amf) EstablishmentRequest(c *gin.Context) {
 		"gnb": ps.Gnb.String(),
 		"dnn": ps.Dnn,
 	}).Info("New PDU Session establishment Request")
+	go amf.HandleEstablishmentRequest(ps)
+	c.JSON(http.StatusAccepted, jsonapi.Message{Message: "please refer to logs for more information"})
+}
 
-	pduSession, err := amf.smf.CreateSessionUplink(c, ps.Ue, ps.Gnb, ps.Dnn)
+func (amf *Amf) HandleEstablishmentRequest(ps n1n2.PduSessionEstabReqMsg) {
+	ctx := amf.Context()
+	// TODO: use ctx.WithTimeout()
+	pduSession, err := amf.smf.CreateSessionUplinkContext(ctx, ps.Ue, ps.Gnb, ps.Dnn)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, jsonapi.MessageWithError{Message: "could not create pdu session uplink", Error: err})
-		return
+		logrus.WithError(err).Error("Could not create PDU Session Uplink")
 	}
 
 	// send PseAccept to UE
@@ -48,20 +53,17 @@ func (amf *Amf) EstablishmentRequest(c *gin.Context) {
 	}
 	reqBody, err := json.Marshal(n2PsReq)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, jsonapi.MessageWithError{Message: "could not marshal json", Error: err})
+		logrus.WithError(err).Error("Could not marshal n1n2.N2PduSessionReqMsg")
 		return
 	}
-	req, err := http.NewRequestWithContext(c, http.MethodPost, ps.Gnb.JoinPath("ps/n2-establishment-request").String(), bytes.NewBuffer(reqBody))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, ps.Gnb.JoinPath("ps/n2-establishment-request").String(), bytes.NewBuffer(reqBody))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, jsonapi.MessageWithError{Message: "could not create request", Error: err})
+		logrus.WithError(err).Error("Could not create request for ps/n2-establishment-request")
 		return
 	}
 	req.Header.Set("User-Agent", amf.userAgent)
 	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
-	resp, err := amf.client.Do(req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, jsonapi.MessageWithError{Message: "no http response", Error: err})
-		return
+	if _, err := amf.client.Do(req); err != nil {
+		logrus.WithError(err).Error("Could not send ps/n2-establishment-request")
 	}
-	defer resp.Body.Close()
 }

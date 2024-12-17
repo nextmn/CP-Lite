@@ -27,6 +27,9 @@ type Smf struct {
 	srv     *pfcp.PFCPEntityCP
 	started bool
 	closed  chan struct{}
+
+	// not exported because must not be modified
+	ctx context.Context
 }
 
 func NewSmf(addr netip.Addr, slices map[string]config.Slice) *Smf {
@@ -37,13 +40,24 @@ func NewSmf(addr netip.Addr, slices map[string]config.Slice) *Smf {
 		slices: s,
 		upfs:   upfs,
 		closed: make(chan struct{}),
+		ctx:    nil,
 	}
 }
 
 func (smf *Smf) Start(ctx context.Context) error {
+	if smf.started {
+		return ErrSmfAlreadyStarted
+	}
+	if ctx == nil {
+		return ErrNilCtx
+	}
+	smf.ctx = ctx
 	logrus.Info("Starting PFCP Server")
 	go func() {
-		defer close(smf.closed)
+		defer func() {
+			smf.started = false
+			close(smf.closed)
+		}()
 		if err := smf.srv.ListenAndServeContext(ctx); err != nil {
 			logrus.WithError(err).Info("PFCP server stopped")
 		}
@@ -66,7 +80,10 @@ func (smf *Smf) Start(ctx context.Context) error {
 			failure = err
 			return false
 		}
-		upf.Associate(association)
+		if err := upf.Associate(ctx, association); err != nil {
+			failure = err
+			return false
+		}
 		return true
 	})
 	if failure != nil {
@@ -77,7 +94,33 @@ func (smf *Smf) Start(ctx context.Context) error {
 	return nil
 }
 
-func (smf *Smf) CreateSessionDownlink(ctx context.Context, ueCtrl jsonapi.ControlURI, dnn string, gnb netip.Addr, gnb_teid uint32) (*PduSessionN3, error) {
+func (smf *Smf) Context() context.Context {
+	if smf.ctx != nil {
+		return smf.ctx
+	}
+	return context.Background()
+}
+
+func (smf *Smf) CreateSessionDownlink(ueCtrl jsonapi.ControlURI, dnn string, gnb netip.Addr, gnb_teid uint32) (*PduSessionN3, error) {
+	return smf.CreateSessionDownlinkContext(smf.ctx, ueCtrl, dnn, gnb, gnb_teid)
+}
+
+func (smf *Smf) CreateSessionDownlinkContext(ctx context.Context, ueCtrl jsonapi.ControlURI, dnn string, gnb netip.Addr, gnb_teid uint32) (*PduSessionN3, error) {
+	if !smf.started {
+		return nil, ErrSmfNotStarted
+	}
+	if ctx == nil {
+		return nil, ErrNilCtx
+	}
+	select {
+	case <-ctx.Done():
+		// if ctx is over, abort
+		return nil, ctx.Err()
+	case <-smf.ctx.Done():
+		// if smf.ctx is over, abort
+		return nil, smf.ctx.Err()
+	default:
+	}
 	// check for existing session
 	s, ok := smf.slices.Load(dnn)
 	if !ok {
@@ -116,7 +159,7 @@ func (smf *Smf) CreateSessionDownlink(ctx context.Context, ueCtrl jsonapi.Contro
 		if i == len(slice.Upfs)-1 {
 			upf.UpdateDownlinkAnchor(session.UeIpAddr, dnn, last_fteid)
 		} else {
-			last_fteid, err = upf.UpdateDownlinkIntermediate(ctx, session.UeIpAddr, dnn, upf_iface, last_fteid)
+			last_fteid, err = upf.UpdateDownlinkIntermediateContext(ctx, session.UeIpAddr, dnn, upf_iface, last_fteid)
 			if err != nil {
 				return nil, err
 			}
@@ -127,7 +170,27 @@ func (smf *Smf) CreateSessionDownlink(ctx context.Context, ueCtrl jsonapi.Contro
 	}
 	return session, nil
 }
-func (smf *Smf) CreateSessionUplink(ctx context.Context, ueCtrl jsonapi.ControlURI, gnbCtrl jsonapi.ControlURI, dnn string) (*PduSessionN3, error) {
+
+func (smf *Smf) CreateSessionUplink(ueCtrl jsonapi.ControlURI, gnbCtrl jsonapi.ControlURI, dnn string) (*PduSessionN3, error) {
+	return smf.CreateSessionUplinkContext(smf.ctx, ueCtrl, gnbCtrl, dnn)
+}
+
+func (smf *Smf) CreateSessionUplinkContext(ctx context.Context, ueCtrl jsonapi.ControlURI, gnbCtrl jsonapi.ControlURI, dnn string) (*PduSessionN3, error) {
+	if !smf.started {
+		return nil, ErrSmfNotStarted
+	}
+	if ctx == nil {
+		return nil, ErrNilCtx
+	}
+	select {
+	case <-ctx.Done():
+		// if ctx is over, abort
+		return nil, ctx.Err()
+	case <-smf.ctx.Done():
+		// if smf.ctx is over, abort
+		return nil, smf.ctx.Err()
+	default:
+	}
 	// check for existing session
 	s, ok := smf.slices.Load(dnn)
 	if !ok {
@@ -177,7 +240,7 @@ func (smf *Smf) CreateSessionUplink(ctx context.Context, ueCtrl jsonapi.ControlU
 			return nil, err
 		}
 	}
-	last_fteid, err := upfa.CreateUplinkAnchor(ctx, ueIpAddr, dnn, upfa_iface)
+	last_fteid, err := upfa.CreateUplinkAnchorContext(ctx, ueIpAddr, dnn, upfa_iface)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +278,7 @@ func (smf *Smf) CreateSessionUplink(ctx context.Context, ueCtrl jsonapi.ControlU
 				return nil, err
 			}
 		}
-		last_fteid, err = upf.CreateUplinkIntermediate(ctx, ueIpAddr, dnn, upf_iface, last_fteid)
+		last_fteid, err = upf.CreateUplinkIntermediateContext(ctx, ueIpAddr, dnn, upf_iface, last_fteid)
 		if err != nil {
 			logrus.WithError(err).Error("Could not create uplink intermediate")
 			return nil, err
@@ -234,6 +297,7 @@ func (smf *Smf) CreateSessionUplink(ctx context.Context, ueCtrl jsonapi.ControlU
 	slice.sessions.Store(ueCtrl, &session)
 	return &session, nil
 }
+
 func (smf *Smf) WaitShutdown(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
