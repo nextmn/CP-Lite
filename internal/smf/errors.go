@@ -10,9 +10,8 @@ import (
 )
 
 var (
-	ErrDnnNotFound             = errors.New("DNN not found")
-	ErrPDUSessionAlreadyExists = errors.New("PDU Session already exists")
-	ErrPDUSessionNotFound      = errors.New("PDU Session not found")
+	ErrDnnNotFound        = errors.New("DNN not found")
+	ErrPDUSessionNotFound = errors.New("PDU Session not found")
 
 	ErrUpfNotAssociated    = errors.New("UPF not associated")
 	ErrUpfNotFound         = errors.New("UPF not found")
