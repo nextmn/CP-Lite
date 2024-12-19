@@ -48,6 +48,9 @@ func NewAmf(bindAddr netip.AddrPort, control jsonapi.ControlURI, userAgent strin
 	// PDU Sessions
 	r.POST("/ps/establishment-request", amf.EstablishmentRequest)
 	r.POST("/ps/n2-establishment-response", amf.N2EstablishmentResponse)
+	r.POST("/ps/handover-required", amf.HandoverRequired)
+	r.POST("/ps/handover-request-ack", amf.HandoverRequestAck)
+	r.POST("/ps/handover-notify", amf.HandoverNotify)
 
 	logrus.WithFields(logrus.Fields{"http-addr": bindAddr}).Info("HTTP Server created")
 	amf.srv = &http.Server{

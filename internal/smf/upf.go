@@ -14,6 +14,7 @@ import (
 
 	pfcp "github.com/nextmn/go-pfcp-networking/pfcp"
 	pfcpapi "github.com/nextmn/go-pfcp-networking/pfcp/api"
+	"github.com/nextmn/json-api/jsonapi"
 
 	"github.com/wmnsk/go-pfcp/ie"
 )
@@ -95,11 +96,11 @@ func (upf *Upf) Rules(ueIp netip.Addr) *Pfcprules {
 	return rules
 }
 
-func (upf *Upf) NextListenFteid(listenInterface netip.Addr) (*Fteid, error) {
+func (upf *Upf) NextListenFteid(listenInterface netip.Addr) (*jsonapi.Fteid, error) {
 	return upf.NextListenFteidContext(upf.ctx, listenInterface)
 }
 
-func (upf *Upf) NextListenFteidContext(ctx context.Context, listenInterface netip.Addr) (*Fteid, error) {
+func (upf *Upf) NextListenFteidContext(ctx context.Context, listenInterface netip.Addr) (*jsonapi.Fteid, error) {
 	if ctx == nil || upf.ctx == nil {
 		return nil, ErrNilCtx
 	}
@@ -118,17 +119,17 @@ func (upf *Upf) NextListenFteidContext(ctx context.Context, listenInterface neti
 	if err != nil {
 		return nil, err
 	}
-	return &Fteid{
+	return &jsonapi.Fteid{
 		Addr: listenInterface,
 		Teid: teid,
 	}, nil
 }
 
-func (upf *Upf) CreateUplinkIntermediate(ueIp netip.Addr, dnn string, listenInterface netip.Addr, forwardFteid *Fteid) (*Fteid, error) {
+func (upf *Upf) CreateUplinkIntermediate(ueIp netip.Addr, dnn string, listenInterface netip.Addr, forwardFteid *jsonapi.Fteid) (*jsonapi.Fteid, error) {
 	return upf.CreateUplinkIntermediateContext(upf.ctx, ueIp, dnn, listenInterface, forwardFteid)
 }
 
-func (upf *Upf) CreateUplinkIntermediateContext(ctx context.Context, ueIp netip.Addr, dnn string, listenInterface netip.Addr, forwardFteid *Fteid) (*Fteid, error) {
+func (upf *Upf) CreateUplinkIntermediateContext(ctx context.Context, ueIp netip.Addr, dnn string, listenInterface netip.Addr, forwardFteid *jsonapi.Fteid) (*jsonapi.Fteid, error) {
 	if ctx == nil || upf.ctx == nil {
 		return nil, ErrNilCtx
 	}
@@ -147,7 +148,7 @@ func (upf *Upf) CreateUplinkIntermediateContext(ctx context.Context, ueIp netip.
 	return listenFteid, nil
 }
 
-func (upf *Upf) CreateUplinkIntermediateWithFteid(ueIp netip.Addr, dnn string, listenFteid *Fteid, forwardFteid *Fteid) {
+func (upf *Upf) CreateUplinkIntermediateWithFteid(ueIp netip.Addr, dnn string, listenFteid *jsonapi.Fteid, forwardFteid *jsonapi.Fteid) {
 	r := upf.Rules(ueIp)
 	r.Lock()
 	defer r.Unlock()
@@ -177,13 +178,12 @@ func (upf *Upf) CreateUplinkIntermediateWithFteid(ueIp netip.Addr, dnn string, l
 			),
 		),
 	))
-	// TODO: QER, to avoid wrong gtp size set by F5GC's UPF
 }
 
-func (upf *Upf) CreateUplinkAnchor(ueIp netip.Addr, dnn string, listenInterface netip.Addr) (*Fteid, error) {
+func (upf *Upf) CreateUplinkAnchor(ueIp netip.Addr, dnn string, listenInterface netip.Addr) (*jsonapi.Fteid, error) {
 	return upf.CreateUplinkAnchorContext(upf.ctx, ueIp, dnn, listenInterface)
 }
-func (upf *Upf) CreateUplinkAnchorContext(ctx context.Context, ueIp netip.Addr, dnn string, listenInterface netip.Addr) (*Fteid, error) {
+func (upf *Upf) CreateUplinkAnchorContext(ctx context.Context, ueIp netip.Addr, dnn string, listenInterface netip.Addr) (*jsonapi.Fteid, error) {
 	if ctx == nil {
 		return nil, ErrNilCtx
 	}
@@ -195,7 +195,7 @@ func (upf *Upf) CreateUplinkAnchorContext(ctx context.Context, ueIp netip.Addr, 
 	return listenFteid, nil
 }
 
-func (upf *Upf) CreateUplinkAnchorWithFteid(ueIp netip.Addr, dnn string, listenFteid *Fteid) {
+func (upf *Upf) CreateUplinkAnchorWithFteid(ueIp netip.Addr, dnn string, listenFteid *jsonapi.Fteid) {
 	r := upf.Rules(ueIp)
 	r.Lock()
 	defer r.Unlock()
@@ -221,7 +221,7 @@ func (upf *Upf) CreateUplinkAnchorWithFteid(ueIp netip.Addr, dnn string, listenF
 	))
 }
 
-func (upf *Upf) UpdateDownlinkAnchor(ueIp netip.Addr, dnn string, forwardFteid *Fteid) {
+func (upf *Upf) UpdateDownlinkAnchor(ueIp netip.Addr, dnn string, forwardFteid *jsonapi.Fteid) uint32 {
 	r := upf.Rules(ueIp)
 	r.Lock()
 	defer r.Unlock()
@@ -249,25 +249,43 @@ func (upf *Upf) UpdateDownlinkAnchor(ueIp netip.Addr, dnn string, forwardFteid *
 			),
 		),
 	))
-	// TODO: QER, to avoid wrong gtp size set by F5GC's UPF
+	return r.currentfarid
 }
 
-func (upf *Upf) UpdateDownlinkIntermediate(ueIp netip.Addr, dnn string, listenInterface netip.Addr, forwardFteid *Fteid) (*Fteid, error) {
+func (upf *Upf) UpdateDownlinkIntermediateDirectForward(ueIp netip.Addr, dnn string, farid uint32, fteid *jsonapi.Fteid) {
+	r := upf.Rules(ueIp)
+	r.Lock()
+	defer r.Unlock()
+	r.updatefars = append(r.updatefars, ie.NewUpdateFAR(ie.NewFARID(farid),
+		ie.NewApplyAction(ApplyActionForw),
+		ie.NewUpdateForwardingParameters(
+			ie.NewDestinationInterface(ie.DstInterfaceAccess),
+			ie.NewNetworkInstance(dnn),
+			ie.NewOuterHeaderCreation(
+				OuterHeaderCreationGtpuUdpIpv4,
+				fteid.Teid,
+				fteid.Addr.String(),
+				"", 0, 0, 0,
+			),
+		),
+	))
+}
+
+func (upf *Upf) UpdateDownlinkIntermediate(ueIp netip.Addr, dnn string, listenInterface netip.Addr, forwardFteid *jsonapi.Fteid) (*jsonapi.Fteid, uint32, error) {
 	return upf.UpdateDownlinkIntermediateContext(upf.ctx, ueIp, dnn, listenInterface, forwardFteid)
 }
-func (upf *Upf) UpdateDownlinkIntermediateContext(ctx context.Context, ueIp netip.Addr, dnn string, listenInterface netip.Addr, forwardFteid *Fteid) (*Fteid, error) {
+func (upf *Upf) UpdateDownlinkIntermediateContext(ctx context.Context, ueIp netip.Addr, dnn string, listenInterface netip.Addr, forwardFteid *jsonapi.Fteid) (*jsonapi.Fteid, uint32, error) {
 	if ctx == nil {
-		return nil, ErrNilCtx
+		return nil, 0, ErrNilCtx
 	}
 	listenFteid, err := upf.NextListenFteidContext(ctx, listenInterface)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	upf.UpdateDownlinkIntermediateWithFteid(ueIp, dnn, listenFteid, forwardFteid)
-	return listenFteid, nil
+	return listenFteid, upf.UpdateDownlinkIntermediateWithFteid(ueIp, dnn, listenFteid, forwardFteid), nil
 }
 
-func (upf *Upf) UpdateDownlinkIntermediateWithFteid(ueIp netip.Addr, dnn string, listenFteid *Fteid, forwardFteid *Fteid) {
+func (upf *Upf) UpdateDownlinkIntermediateWithFteid(ueIp netip.Addr, dnn string, listenFteid *jsonapi.Fteid, forwardFteid *jsonapi.Fteid) uint32 {
 	r := upf.Rules(ueIp)
 	r.Lock()
 	defer r.Unlock()
@@ -311,7 +329,8 @@ func (upf *Upf) UpdateDownlinkIntermediateWithFteid(ueIp netip.Addr, dnn string,
 			),
 		),
 	))
-	// TODO: QER, to avoid wrong gtp size set by F5GC's UPF
+
+	return r.currentfarid
 }
 
 func (upf *Upf) CreateSession(ue netip.Addr) error {
@@ -362,7 +381,7 @@ func (upf *Upf) UpdateSession(ue netip.Addr) error {
 	if err != nil {
 		return err
 	}
-	updatefars, err, _, _ := pfcp.NewFARMap(rules.updatefars)
+	updatefars, err, _, _ := pfcp.NewFARMapUpdate(rules.updatefars)
 	if err != nil {
 		return err
 	}

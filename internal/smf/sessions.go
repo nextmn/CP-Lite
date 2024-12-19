@@ -50,3 +50,16 @@ func (s *SessionsMap) Add(ueCtrl jsonapi.ControlURI, session *PduSessionN3) {
 		m.s = append(m.s, session)
 	}
 }
+
+func (s *SessionsMap) SetNextDownlinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, fteid *jsonapi.Fteid) error {
+	s.Lock()
+	defer s.Unlock()
+	if sessions, ok := s.m[ueCtrl]; ok {
+		for _, session := range sessions.s {
+			if session.UeIpAddr == ueAddr {
+				session.NextDownlinkFteid = fteid
+			}
+		}
+	}
+	return ErrPDUSessionNotFound
+}

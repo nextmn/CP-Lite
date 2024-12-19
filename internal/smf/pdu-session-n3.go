@@ -7,10 +7,14 @@ package smf
 
 import (
 	"net/netip"
+
+	"github.com/nextmn/json-api/jsonapi"
 )
 
 type PduSessionN3 struct {
-	UeIpAddr      netip.Addr
-	UplinkFteid   *Fteid
-	DownlinkFteid *Fteid
+	UeIpAddr          netip.Addr
+	UplinkFteid       *jsonapi.Fteid
+	DownlinkFteid     *jsonapi.Fteid
+	NextDownlinkFteid *jsonapi.Fteid // Handover
+	DlFarId           uint32
 }

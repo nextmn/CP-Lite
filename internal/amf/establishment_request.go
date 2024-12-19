@@ -48,8 +48,7 @@ func (amf *Amf) HandleEstablishmentRequest(ps n1n2.PduSessionEstabReqMsg) {
 			Header: ps,
 			Addr:   pduSession.UeIpAddr,
 		},
-		Upf:        pduSession.UplinkFteid.Addr,
-		UplinkTeid: pduSession.UplinkFteid.Teid,
+		UplinkFteid: *pduSession.UplinkFteid,
 	}
 	reqBody, err := json.Marshal(n2PsReq)
 	if err != nil {

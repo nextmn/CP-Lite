@@ -131,10 +131,7 @@ func (smf *Smf) CreateSessionDownlinkContext(ctx context.Context, ueCtrl jsonapi
 	if err != nil {
 		return nil, err
 	}
-	session.DownlinkFteid = &Fteid{
-		Addr: gnb,
-		Teid: gnb_teid,
-	}
+	session.DownlinkFteid = jsonapi.NewFteid(gnb, gnb_teid)
 	if len(slice.Upfs) == 0 {
 		return nil, ErrUpfNotFound
 	}
@@ -155,14 +152,16 @@ func (smf *Smf) CreateSessionDownlinkContext(ctx context.Context, ueCtrl jsonapi
 		if err != nil {
 			return nil, err
 		}
+		var far_id uint32
 		if i == len(slice.Upfs)-1 {
-			upf.UpdateDownlinkAnchor(session.UeIpAddr, dnn, last_fteid)
+			far_id = upf.UpdateDownlinkAnchor(session.UeIpAddr, dnn, last_fteid)
 		} else {
-			last_fteid, err = upf.UpdateDownlinkIntermediateContext(ctx, session.UeIpAddr, dnn, upf_iface, last_fteid)
+			last_fteid, far_id, err = upf.UpdateDownlinkIntermediateContext(ctx, session.UeIpAddr, dnn, upf_iface, last_fteid)
 			if err != nil {
 				return nil, err
 			}
 		}
+		session.DlFarId = far_id
 		if err := upf.UpdateSession(session.UeIpAddr); err != nil {
 			return nil, err
 		}
@@ -300,4 +299,61 @@ func (smf *Smf) WaitShutdown(ctx context.Context) error {
 	case <-smf.closed:
 		return nil
 	}
+}
+
+func (smf *Smf) GetSessionUplinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn string) (*jsonapi.Fteid, error) {
+	slice, ok := smf.slices.Load(dnn)
+	if !ok {
+		return nil, ErrDnnNotFound
+	}
+	session, err := slice.(*Slice).sessions.Get(ueCtrl, ueAddr)
+	if err != nil {
+		return nil, err
+	}
+	return session.UplinkFteid, nil
+}
+
+func (smf *Smf) GetSessionDownlinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn string) (*jsonapi.Fteid, error) {
+	slice, ok := smf.slices.Load(dnn)
+	if !ok {
+		return nil, ErrDnnNotFound
+	}
+	session, err := slice.(*Slice).sessions.Get(ueCtrl, ueAddr)
+	if err != nil {
+		return nil, err
+	}
+	return session.DownlinkFteid, nil
+}
+
+func (smf *Smf) StoreNextDownlinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn string, fteid *jsonapi.Fteid) error {
+	slice, ok := smf.slices.Load(dnn)
+	if !ok {
+		return ErrDnnNotFound
+	}
+	return slice.(*Slice).sessions.SetNextDownlinkFteid(ueCtrl, ueAddr, fteid)
+}
+
+func (smf *Smf) UpdateSessionDownlink(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn string) error {
+	return smf.UpdateSessionDownlinkContext(smf.ctx, ueCtrl, ueAddr, dnn)
+}
+
+// Updates Session to NextDownlinkFteid
+func (smf *Smf) UpdateSessionDownlinkContext(ctx context.Context, ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn string) error {
+	slice, ok := smf.slices.Load(dnn)
+	if !ok {
+		return ErrDnnNotFound
+	}
+	session, err := slice.(*Slice).sessions.Get(ueCtrl, ueAddr)
+	if err != nil {
+		return err
+	}
+	upf_ctrl := slice.(*Slice).Upfs[len(slice.(*Slice).Upfs)-1]
+	upf_any, ok := smf.upfs.Load(upf_ctrl)
+	if !ok {
+		return ErrUpfNotFound
+	}
+	upf := upf_any.(*Upf)
+	upf.UpdateDownlinkIntermediateDirectForward(ueAddr, dnn, session.DlFarId, session.NextDownlinkFteid)
+
+	return upf.UpdateSession(session.UeIpAddr)
 }
