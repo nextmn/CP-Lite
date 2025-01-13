@@ -347,7 +347,11 @@ func (smf *Smf) UpdateSessionDownlinkContext(ctx context.Context, ueCtrl jsonapi
 	if err != nil {
 		return err
 	}
-	upf_ctrl := slice.(*Slice).Upfs[len(slice.(*Slice).Upfs)-1]
+
+	if len(slice.(*Slice).Upfs) == 0 {
+		return ErrUpfNotFound
+	}
+	upf_ctrl := slice.(*Slice).Upfs[0] // upf-i
 	upf_any, ok := smf.upfs.Load(upf_ctrl)
 	if !ok {
 		return ErrUpfNotFound
