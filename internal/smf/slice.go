@@ -16,14 +16,22 @@ type SlicesMap struct {
 	sync.Map // slice name: Slice
 }
 
-func NewSlicesMap(slices map[string]config.Slice) *SlicesMap {
+func NewSlicesMap(slices map[string]config.Slice, areas map[string]config.Area) *SlicesMap {
 	m := SlicesMap{}
 	for k, slice := range slices {
 		upfs := make([]netip.Addr, len(slice.Upfs))
 		for i, upf := range slice.Upfs {
 			upfs[i] = upf.NodeID
 		}
-		sl := NewSlice(slice.Pool, upfs)
+
+		paths := make(map[string][]netip.Addr)
+		for area_name, area := range areas {
+			if path, exists := area.Paths[k]; exists {
+				paths[area_name] = path
+			}
+		}
+
+		sl := NewSlice(slice.Pool, upfs, paths)
 		m.Store(k, sl)
 	}
 	return &m
@@ -33,12 +41,14 @@ type Slice struct {
 	Upfs     []netip.Addr
 	Pool     *UeIpPool
 	sessions *SessionsMap
+	Paths    map[string][]netip.Addr
 }
 
-func NewSlice(pool netip.Prefix, upfs []netip.Addr) *Slice {
+func NewSlice(pool netip.Prefix, upfs []netip.Addr, paths map[string][]netip.Addr) *Slice {
 	return &Slice{
 		Pool:     NewUeIpPool(pool),
 		Upfs:     upfs,
 		sessions: NewSessionsMap(),
+		Paths:    paths,
 	}
 }

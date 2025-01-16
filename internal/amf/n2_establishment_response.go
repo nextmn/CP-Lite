@@ -28,7 +28,7 @@ func (amf *Amf) N2EstablishmentResponse(c *gin.Context) {
 
 func (amf *Amf) HandleN2EstablishmentResponse(ps n1n2.N2PduSessionRespMsg) {
 	ctx := amf.Context()
-	pduSession, err := amf.smf.CreateSessionDownlinkContext(ctx, ps.UeInfo.Header.Ue, ps.UeInfo.Addr, ps.UeInfo.Header.Dnn, ps.DownlinkFteid.Addr, ps.DownlinkFteid.Teid)
+	pduSession, err := amf.smf.CreateSessionDownlinkContext(ctx, ps.UeInfo.Header.Ue, ps.UeInfo.Addr, ps.UeInfo.Header.Dnn, ps.UeInfo.Header.Gnb, ps.DownlinkFteid)
 	if err != nil {
 		logrus.WithError(err).WithFields(logrus.Fields{
 			"ue-ip-addr": ps.UeInfo.Addr,

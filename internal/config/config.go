@@ -33,9 +33,10 @@ func ParseConf(file string) (*CPConfig, error) {
 
 type CPConfig struct {
 	Control Control          `yaml:"control"`
-	Logger  *Logger          `yaml:"logger,omitempty"`
-	Slices  map[string]Slice `yaml:"slices"`
 	Pfcp    netip.Addr       `yaml:"pfcp"`
+	Slices  map[string]Slice `yaml:"slices"`
+	Areas   map[string]Area  `yaml:"areas"`
+	Logger  *Logger          `yaml:"logger,omitempty"`
 }
 
 type Control struct {
@@ -56,4 +57,9 @@ type Upf struct {
 type Interface struct {
 	Type string     `yaml:"type"`
 	Addr netip.Addr `yaml:"addr"`
+}
+
+type Area struct {
+	Gnbs  []jsonapi.ControlURI    `yaml:"gnbs"`
+	Paths map[string][]netip.Addr `yaml:"paths"`
 }

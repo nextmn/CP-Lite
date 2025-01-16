@@ -12,6 +12,8 @@ import (
 var (
 	ErrDnnNotFound        = errors.New("DNN not found")
 	ErrPDUSessionNotFound = errors.New("PDU Session not found")
+	ErrAreaNotFound       = errors.New("RAN Area not found for this gNB")
+	ErrPathNotFound       = errors.New("Path not found for this RAN Area")
 
 	ErrUpfNotAssociated    = errors.New("UPF not associated")
 	ErrUpfNotFound         = errors.New("UPF not found")

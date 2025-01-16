@@ -25,6 +25,7 @@ func (amf *Amf) HandoverNotify(c *gin.Context) {
 	logrus.WithFields(logrus.Fields{
 		"ue":         m.UeCtrl.String(),
 		"gnb-target": m.TargetGnb.String(),
+		"gbn-source": m.SourceGnb.String(),
 	}).Info("New Handover Confirm")
 	go amf.HandleHandoverNotify(m)
 	c.JSON(http.StatusAccepted, jsonapi.Message{Message: "please refer to logs for more information"})
@@ -40,11 +41,12 @@ func (amf *Amf) HandleHandoverNotify(m n1n2.HandoverNotify) {
 	ctx := amf.Context()
 	for _, session := range m.Sessions {
 		// Note: for the moment, we are only doing direct forwarding (step 2)
-		if err := amf.smf.UpdateSessionDownlinkContext(ctx, m.UeCtrl, session.Addr, session.Dnn); err != nil {
+		if err := amf.smf.UpdateSessionDownlinkContext(ctx, m.UeCtrl, session.Addr, session.Dnn, m.SourceGnb); err != nil {
 			logrus.WithError(err).WithFields(logrus.Fields{
 				"ue":          m.UeCtrl.String(),
 				"pdu-session": session.Addr,
 				"dnn":         session.Dnn,
+				"gnb-source":  m.SourceGnb,
 			}).Error("Handover Notify: could not update session downlink path")
 		}
 

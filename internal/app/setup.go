@@ -21,7 +21,7 @@ type Setup struct {
 }
 
 func NewSetup(config *config.CPConfig) *Setup {
-	smf := smf.NewSmf(config.Pfcp, config.Slices)
+	smf := smf.NewSmf(config.Pfcp, config.Slices, config.Areas)
 	return &Setup{
 		config: config,
 		amf:    amf.NewAmf(config.Control.BindAddr, config.Control.Uri, "go-github-nextmn-cp-lite", smf),
