@@ -46,24 +46,6 @@ type Upf struct {
 	ctx context.Context
 }
 
-func (upf *Upf) GetN3() (netip.Addr, error) {
-	for addr, iface := range upf.interfaces {
-		if iface.IsN3() {
-			return addr, nil
-		}
-	}
-	return netip.Addr{}, ErrInterfaceNotFound
-}
-
-func (upf *Upf) GetN9() (netip.Addr, error) {
-	for addr, iface := range upf.interfaces {
-		if iface.IsN9() {
-			return addr, nil
-		}
-	}
-	return netip.Addr{}, ErrInterfaceNotFound
-}
-
 func NewUpf(interfaces []config.Interface) *Upf {
 	upf := Upf{
 		interfaces: NewUpfInterfaceMap(interfaces),

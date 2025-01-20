@@ -60,6 +60,11 @@ type Interface struct {
 }
 
 type Area struct {
-	Gnbs  []jsonapi.ControlURI    `yaml:"gnbs"`
-	Paths map[string][]netip.Addr `yaml:"paths"`
+	Gnbs  []jsonapi.ControlURI      `yaml:"gnbs"`
+	Paths map[string][]GTPInterface `yaml:"paths"`
+}
+
+type GTPInterface struct {
+	NodeID        netip.Addr `yaml:"node-id"`
+	InterfaceAddr netip.Addr `yaml:"interface-addr"`
 }

@@ -149,27 +149,18 @@ func (smf *Smf) CreateSessionDownlinkContext(ctx context.Context, ueCtrl jsonapi
 		return nil, ErrPathNotFound
 	}
 
-	for i, upf_ctrl := range path {
-		upf_any, ok := smf.upfs.Load(upf_ctrl)
+	for i, gtpInterface := range path {
+		upf_any, ok := smf.upfs.Load(gtpInterface.NodeID)
 		if !ok {
 			return nil, ErrUpfNotFound
 		}
 		upf := upf_any.(*Upf)
-		var err error
-		var upf_iface netip.Addr
-		if i == 0 {
-			upf_iface, err = upf.GetN3()
-		} else if i != len(slice.Upfs)-1 {
-			upf_iface, err = upf.GetN9()
-		}
-		if err != nil {
-			return nil, err
-		}
+
 		var far_id uint32
 		if i == len(slice.Upfs)-1 {
 			far_id = upf.UpdateDownlinkAnchor(session.UeIpAddr, dnn, last_fteid)
 		} else {
-			last_fteid, far_id, err = upf.UpdateDownlinkIntermediateContext(ctx, session.UeIpAddr, dnn, upf_iface, last_fteid)
+			last_fteid, far_id, err = upf.UpdateDownlinkIntermediateContext(ctx, session.UeIpAddr, dnn, gtpInterface.InterfaceAddr, last_fteid)
 			if err != nil {
 				return nil, err
 			}
@@ -229,35 +220,13 @@ func (smf *Smf) CreateSessionUplinkContext(ctx context.Context, ueCtrl jsonapi.C
 		return nil, ErrUpfNotFound
 	}
 	// 2. init anchor
-	upfa_ctrl := path[len(path)-1]
-	upfa_any, ok := smf.upfs.Load(upfa_ctrl)
+	upfaInterface := path[len(path)-1]
+	upfa_any, ok := smf.upfs.Load(upfaInterface.NodeID)
 	if !ok {
 		return nil, ErrUpfNotFound
 	}
 	upfa := upfa_any.(*Upf)
-	var upfa_iface netip.Addr
-	if len(path) == 1 {
-		upfa_iface, err = upfa.GetN3()
-		if err != nil {
-			logrus.WithError(err).WithFields(logrus.Fields{
-				"upf":   upfa_ctrl,
-				"iface": "n3",
-				"type":  "anchor",
-			}).Error("Could not prepare session uplink path")
-			return nil, err
-		}
-	} else {
-		upfa_iface, err = upfa.GetN9()
-		if err != nil {
-			logrus.WithError(err).WithFields(logrus.Fields{
-				"upf":   upfa_ctrl,
-				"iface": "n9",
-				"type":  "anchor",
-			}).Error("Could not prepare session uplink path")
-			return nil, err
-		}
-	}
-	last_fteid, err := upfa.CreateUplinkAnchorContext(ctx, ueIpAddr, dnn, upfa_iface)
+	last_fteid, err := upfa.CreateUplinkAnchorContext(ctx, ueIpAddr, dnn, upfaInterface.InterfaceAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -267,35 +236,13 @@ func (smf *Smf) CreateSessionUplinkContext(ctx context.Context, ueCtrl jsonapi.C
 
 	// 3. init path from anchor
 	for i := len(path) - 2; i >= 0; i-- {
-		upf_ctrl := path[i]
-		upf_any, ok := smf.upfs.Load(upf_ctrl)
+		gtpInterface := path[i]
+		upf_any, ok := smf.upfs.Load(gtpInterface.NodeID)
 		if !ok {
 			return nil, ErrUpfNotFound
 		}
 		upf := upf_any.(*Upf)
-		var upf_iface netip.Addr
-		if i == 0 {
-			upf_iface, err = upf.GetN3()
-			if err != nil {
-				logrus.WithError(err).WithFields(logrus.Fields{
-					"upf":   upf_ctrl,
-					"iface": "n3",
-					"type":  "inter",
-				}).Error("Could not prepare session uplink path")
-				return nil, err
-			}
-		} else {
-			upf_iface, err = upf.GetN9()
-			if err != nil {
-				logrus.WithError(err).WithFields(logrus.Fields{
-					"upf":   upf_ctrl,
-					"iface": "n9",
-					"type":  "inter",
-				}).Error("Could not prepare session uplink path")
-				return nil, err
-			}
-		}
-		last_fteid, err = upf.CreateUplinkIntermediateContext(ctx, ueIpAddr, dnn, upf_iface, last_fteid)
+		last_fteid, err = upf.CreateUplinkIntermediateContext(ctx, ueIpAddr, dnn, gtpInterface.InterfaceAddr, last_fteid)
 		if err != nil {
 			logrus.WithError(err).Error("Could not create uplink intermediate")
 			return nil, err
@@ -386,7 +333,7 @@ func (smf *Smf) UpdateSessionDownlinkContext(ctx context.Context, ueCtrl jsonapi
 	if len(path) == 0 {
 		return ErrUpfNotFound
 	}
-	upf_ctrl := path[0] // upf-i
+	upf_ctrl := path[0].NodeID // upf-i
 	upf_any, ok := smf.upfs.Load(upf_ctrl)
 	if !ok {
 		return ErrUpfNotFound

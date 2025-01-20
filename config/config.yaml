@@ -8,13 +8,11 @@ slices:
   nextmn-lite:
     pool: "10.0.0.0/24"
     upfs:
-      - node-id: "203.0.113.2" # srgw1
+      - node-id: "203.0.113.2"  # srv6-ctrl
         interfaces:
-          - type: "N3"
+          - type: "N3" # srgw1
             addr: "198.51.100.11"
-      - node-id: "203.0.113.3" # srgw2
-        interfaces:
-          - type: "N3"
+          - type: "N3" # srgw2
             addr: "198.51.100.12"
 
 areas: # RAN areas
@@ -24,13 +22,15 @@ areas: # RAN areas
       - "http://192.0.2.4.8080" # gnb2
     paths: # define one path per slice
       nextmn-lite:
-        - "203.0.113.2" # srgw1
+        - node-id: "203.0.113.2" # srv6-ctrl
+          interface-addr: "198.51.100.11" # srgw1
   area2:
     gnbs:
       - "http://192.0.2.5:8080" # gnb3
     paths:
       nextmn-lite:
-        - "203.0.113.3" # srgw2
+        - node-id: "203.0.113.2" # srv6-ctrl
+          interface-addr: "198.51.100.12" # srgw2
 
 logger:
   level: "trace"
