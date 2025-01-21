@@ -13,7 +13,7 @@ import (
 )
 
 type Sessions struct {
-	s []*PduSessionN3
+	s map[netip.Addr]*PduSessionN3
 }
 
 type SessionsMap struct {
@@ -31,10 +31,8 @@ func (s *SessionsMap) Get(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr) (*PduSes
 	s.RLock()
 	defer s.RUnlock()
 	if sessions, ok := s.m[ueCtrl]; ok {
-		for _, session := range sessions.s {
-			if session.UeIpAddr == ueAddr {
-				return session, nil
-			}
+		if session, ok := sessions.s[ueAddr]; ok {
+			return session, nil
 		}
 	}
 	return nil, ErrPDUSessionNotFound
@@ -45,9 +43,13 @@ func (s *SessionsMap) Add(ueCtrl jsonapi.ControlURI, session *PduSessionN3) {
 	defer s.Unlock()
 	m, ok := s.m[ueCtrl]
 	if !ok {
-		s.m[ueCtrl] = &Sessions{s: []*PduSessionN3{session}}
+		s.m[ueCtrl] = &Sessions{
+			s: map[netip.Addr]*PduSessionN3{
+				session.UeIpAddr: session,
+			},
+		}
 	} else {
-		m.s = append(m.s, session)
+		m.s[session.UeIpAddr] = session
 	}
 }
 
@@ -55,10 +57,33 @@ func (s *SessionsMap) SetNextDownlinkFteid(ueCtrl jsonapi.ControlURI, ueAddr net
 	s.Lock()
 	defer s.Unlock()
 	if sessions, ok := s.m[ueCtrl]; ok {
-		for _, session := range sessions.s {
-			if session.UeIpAddr == ueAddr {
-				session.NextDownlinkFteid = fteid
-			}
+		if session, ok := sessions.s[ueAddr]; ok {
+			session.NextDownlinkFteid = fteid
+			return nil
+		}
+	}
+	return ErrPDUSessionNotFound
+}
+
+func (s *SessionsMap) SetUplinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, fteid *jsonapi.Fteid) error {
+	s.Lock()
+	defer s.Unlock()
+	if sessions, ok := s.m[ueCtrl]; ok {
+		if session, ok := sessions.s[ueAddr]; ok {
+			session.UplinkFteid = fteid
+			return nil
+		}
+	}
+	return ErrPDUSessionNotFound
+}
+
+func (s *SessionsMap) SetIndirectForwardingRequired(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, value bool) error {
+	s.Lock()
+	defer s.Unlock()
+	if sessions, ok := s.m[ueCtrl]; ok {
+		if session, ok := sessions.s[ueAddr]; ok {
+			session.IndirectForwardingRequired = value
+			return nil
 		}
 	}
 	return ErrPDUSessionNotFound

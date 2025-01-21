@@ -40,25 +40,70 @@ func (amf *Amf) HandoverRequired(c *gin.Context) {
 func (amf *Amf) HandleHandoverRequired(m n1n2.HandoverRequired) {
 	ctx := amf.Context()
 
+	sourceArea, ok := amf.smf.Areas.Area(m.SourcegNB)
+	if !ok {
+		logrus.WithFields(logrus.Fields{
+			"source-gnb": m.SourcegNB,
+		}).Error("Unknown Area for source gNB")
+		return
+	}
+	targetArea, ok := amf.smf.Areas.Area(m.TargetgNB)
+	if !ok {
+		logrus.WithFields(logrus.Fields{
+			"target-gnb": m.TargetgNB,
+		}).Error("Unknown Area for target gNB")
+		return
+	}
+
 	// send handover-request to target with UPF-i FTEID
 	sessions := make([]n1n2.Session, len(m.Sessions))
 	for i, s := range m.Sessions {
-		// Note: for the moment, we keep using the same UPF-i when performing handover,
-		// => we reuse existing UL FTEID.
-		// TODO: if UPF-i change, push new UL rules
-		uplinkfteid, err := amf.smf.GetSessionUplinkFteid(m.Ue, s.Addr, s.Dnn)
-		if err != nil {
-			// TODO: notify gnb of failure
-			logrus.WithError(err).WithFields(logrus.Fields{
-				"ue":  s.Addr,
-				"dnn": s.Dnn,
-			}).Error("Could not find Uplink FTEID for handover")
-			continue
+		// store type of forwarding for later
+		if m.IndirectForwarding {
+			if err := amf.smf.SetSessionIndirectForwardingRequired(m.Ue, s.Addr, s.Dnn, true); err != nil {
+				logrus.WithError(err).WithFields(logrus.Fields{
+					"ue":      m.Ue,
+					"ue-addr": s.Addr,
+					"dnn":     s.Dnn,
+				}).Error("Could not set Indirect Forwarding Required for handover")
+				continue
+			}
 		}
-		sessions[i] = n1n2.Session{
-			Addr:        s.Addr,
-			Dnn:         s.Dnn,
-			UplinkFteid: uplinkfteid,
+		if sourceArea != targetArea {
+			// we could recycle common UL rules, but this is harder than simply
+			// create the target path (and delete the source path at the end of the handover)
+			pduSessionN3, err := amf.smf.CreateSessionUplinkContext(ctx, m.Ue, m.TargetgNB, s.Dnn)
+			if err != nil {
+				logrus.WithError(err).WithFields(logrus.Fields{
+					"ue":         m.Ue,
+					"ue-addr":    s.Addr,
+					"dnn":        s.Dnn,
+					"target-gnb": m.TargetgNB,
+				}).Error("Could not establish new uplink path")
+				continue
+			}
+			sessions[i] = n1n2.Session{
+				Addr:        s.Addr,
+				Dnn:         s.Dnn,
+				UplinkFteid: pduSessionN3.UplinkFteid,
+			}
+		} else {
+			// fully reuse existing path
+			uplinkfteid, err := amf.smf.GetSessionUplinkFteid(m.Ue, s.Addr, s.Dnn)
+			if err != nil {
+				// TODO: notify gnb of failure
+				logrus.WithError(err).WithFields(logrus.Fields{
+					"ue":      m.Ue,
+					"ue-addr": s.Addr,
+					"dnn":     s.Dnn,
+				}).Error("Could not find Uplink FTEID for handover")
+				continue
+			}
+			sessions[i] = n1n2.Session{
+				Addr:        s.Addr,
+				Dnn:         s.Dnn,
+				UplinkFteid: uplinkfteid,
+			}
 		}
 
 	}

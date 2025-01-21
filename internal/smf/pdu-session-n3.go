@@ -12,9 +12,12 @@ import (
 )
 
 type PduSessionN3 struct {
-	UeIpAddr          netip.Addr
-	UplinkFteid       *jsonapi.Fteid
-	DownlinkFteid     *jsonapi.Fteid
-	NextDownlinkFteid *jsonapi.Fteid // Handover
-	DlFarId           uint32
+	UeIpAddr      netip.Addr
+	UplinkFteid   *jsonapi.Fteid
+	DownlinkFteid *jsonapi.Fteid
+
+	// Handover
+	NextDownlinkFteid          *jsonapi.Fteid
+	DlFarId                    uint32
+	IndirectForwardingRequired bool
 }

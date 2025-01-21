@@ -36,11 +36,13 @@ func (amf *Amf) HandoverNotify(c *gin.Context) {
 // 1. update DL rules if UPF-i have been updated during the handover
 // 2. update DL rule in the UPF-i if direct forwarding was used
 // 3. remove forwarding DL rule in UPF-i if indirect forwarding was used
-// 4. Release rules for the old DL path (to source gNB)
+// 4. release rules for the old DL path (from source upf-a to source gNB)
+// 5. if target area != source area: release rules for the old UL path (from source upf-i to source upf-a)
 func (amf *Amf) HandleHandoverNotify(m n1n2.HandoverNotify) {
 	ctx := amf.Context()
 	for _, session := range m.Sessions {
-		// Note: for the moment, we are only doing direct forwarding (step 2)
+		// step 1: TODO
+		// step 2: update DL rule in the UPF-i if direct forwarding was used
 		if err := amf.smf.UpdateSessionDownlinkContext(ctx, m.UeCtrl, session.Addr, session.Dnn, m.SourceGnb); err != nil {
 			logrus.WithError(err).WithFields(logrus.Fields{
 				"ue":          m.UeCtrl.String(),
@@ -49,6 +51,9 @@ func (amf *Amf) HandleHandoverNotify(m n1n2.HandoverNotify) {
 				"gnb-source":  m.SourceGnb,
 			}).Error("Handover Notify: could not update session downlink path")
 		}
+		// step 3: TODO
+		// step 4: TODO
+		// step 5: TODO
 
 	}
 }
