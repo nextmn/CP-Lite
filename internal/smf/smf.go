@@ -19,8 +19,6 @@ import (
 	"github.com/wmnsk/go-pfcp/ie"
 )
 
-type UpfPath []netip.Addr
-
 type Smf struct {
 	upfs    *UpfsMap
 	slices  *SlicesMap
@@ -173,6 +171,66 @@ func (smf *Smf) CreateSessionDownlinkContext(ctx context.Context, ueCtrl jsonapi
 	return session, nil
 }
 
+func (smf *Smf) CreateSessionDownlinkFWUpfIContext(ctx context.Context, ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn string, fwUpfi *config.GTPInterface, DlFteid jsonapi.Fteid) (*jsonapi.Fteid, error) {
+	if !smf.started {
+		return nil, ErrSmfNotStarted
+	}
+	if ctx == nil {
+		return nil, ErrNilCtx
+	}
+	select {
+	case <-ctx.Done():
+		// if ctx is over, abort
+		return nil, ctx.Err()
+	case <-smf.ctx.Done():
+		// if smf.ctx is over, abort
+		return nil, smf.ctx.Err()
+	default:
+	}
+
+	upf_any, ok := smf.upfs.Load(fwUpfi.NodeID)
+	if !ok {
+		return nil, ErrUpfNotFound
+	}
+	upf := upf_any.(*Upf)
+
+	fteid, _, err := upf.UpdateDownlinkIntermediateContext(ctx, ueIp, dnn, fwUpfi.InterfaceAddr, &DlFteid)
+	if err != nil {
+		return nil, err
+	}
+	if err := upf.UpdateSession(ueIp); err != nil {
+		return nil, err
+	}
+	return fteid, nil
+}
+
+func (smf *Smf) SessionFirstUpf(ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn string, gnbCtrl jsonapi.ControlURI) (*config.GTPInterface, error) {
+	s, ok := smf.slices.Load(dnn)
+	if !ok {
+		return nil, ErrDnnNotFound
+	}
+	slice := s.(*Slice)
+	if len(slice.Upfs) == 0 {
+		return nil, ErrUpfNotFound
+	}
+
+	area, ok := smf.Areas.Area(gnbCtrl)
+	if !ok {
+		return nil, ErrAreaNotFound
+	}
+
+	path, ok := slice.Paths[area]
+	if !ok {
+		return nil, ErrPathNotFound
+	}
+
+	if len(path) == 0 {
+		return nil, ErrUpfNotFound
+	}
+	return &path[0], nil
+
+}
+
 func (smf *Smf) CreateSessionUplink(ueCtrl jsonapi.ControlURI, gnbCtrl jsonapi.ControlURI, dnn string) (*PduSessionN3, error) {
 	return smf.CreateSessionUplinkContext(smf.ctx, ueCtrl, gnbCtrl, dnn)
 }
@@ -297,6 +355,14 @@ func (smf *Smf) SetSessionIndirectForwardingRequired(ueCtrl jsonapi.ControlURI, 
 		return ErrDnnNotFound
 	}
 	return slice.(*Slice).sessions.SetIndirectForwardingRequired(ueCtrl, ueAddr, value)
+}
+
+func (smf *Smf) GetSessionIndirectForwardingRequired(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn string) (bool, error) {
+	slice, ok := smf.slices.Load(dnn)
+	if !ok {
+		return false, ErrDnnNotFound
+	}
+	return slice.(*Slice).sessions.GetIndirectForwardingRequired(ueCtrl, ueAddr)
 }
 
 func (smf *Smf) GetSessionDownlinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn string) (*jsonapi.Fteid, error) {

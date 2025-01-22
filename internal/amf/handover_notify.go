@@ -40,16 +40,23 @@ func (amf *Amf) HandoverNotify(c *gin.Context) {
 // 5. if target area != source area: release rules for the old UL path (from source upf-i to source upf-a)
 func (amf *Amf) HandleHandoverNotify(m n1n2.HandoverNotify) {
 	ctx := amf.Context()
-	for _, session := range m.Sessions {
+	for _, s := range m.Sessions {
+		indirectForwardingRequired, err := amf.smf.GetSessionIndirectForwardingRequired(m.UeCtrl, s.Addr, s.Dnn)
+		if err != nil {
+			// TODO: notify of failure
+			continue
+		}
 		// step 1: TODO
 		// step 2: update DL rule in the UPF-i if direct forwarding was used
-		if err := amf.smf.UpdateSessionDownlinkContext(ctx, m.UeCtrl, session.Addr, session.Dnn, m.SourceGnb); err != nil {
-			logrus.WithError(err).WithFields(logrus.Fields{
-				"ue":          m.UeCtrl.String(),
-				"pdu-session": session.Addr,
-				"dnn":         session.Dnn,
-				"gnb-source":  m.SourceGnb,
-			}).Error("Handover Notify: could not update session downlink path")
+		if !indirectForwardingRequired {
+			if err := amf.smf.UpdateSessionDownlinkContext(ctx, m.UeCtrl, s.Addr, s.Dnn, m.SourceGnb); err != nil {
+				logrus.WithError(err).WithFields(logrus.Fields{
+					"ue":          m.UeCtrl.String(),
+					"pdu-session": s.Addr,
+					"dnn":         s.Dnn,
+					"gnb-source":  m.SourceGnb,
+				}).Error("Handover Notify: could not update session downlink path")
+			}
 		}
 		// step 3: TODO
 		// step 4: TODO

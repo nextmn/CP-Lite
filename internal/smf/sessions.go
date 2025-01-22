@@ -88,3 +88,14 @@ func (s *SessionsMap) SetIndirectForwardingRequired(ueCtrl jsonapi.ControlURI, u
 	}
 	return ErrPDUSessionNotFound
 }
+
+func (s *SessionsMap) GetIndirectForwardingRequired(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr) (bool, error) {
+	s.RLock()
+	defer s.RUnlock()
+	if sessions, ok := s.m[ueCtrl]; ok {
+		if session, ok := sessions.s[ueAddr]; ok {
+			return session.IndirectForwardingRequired, nil
+		}
+	}
+	return false, ErrPDUSessionNotFound
+}
