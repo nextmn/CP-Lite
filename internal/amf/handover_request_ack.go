@@ -84,6 +84,11 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 				// TODO: notify failure
 				continue
 			}
+			// store DownlinkFteid to update the DL path upon reception of Handover Notfify
+			if err := amf.smf.StoreNextDownlinkFteid(m.UeCtrl, s.Addr, s.Dnn, s.DownlinkFteid); err != nil {
+				// TODO: notify of failure
+				continue
+			}
 			// push new (temporary) DL rule on target UPF-i only (FAR: to target gNB) [DL-TI]
 			fwFteidTarget, err := amf.smf.CreateSessionDownlinkFWUpfIContext(ctx, m.UeCtrl, s.Addr, s.Dnn, upfiFwTarget, *s.DownlinkFteid)
 			if err != nil {

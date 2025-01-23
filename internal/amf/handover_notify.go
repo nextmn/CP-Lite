@@ -33,21 +33,34 @@ func (amf *Amf) HandoverNotify(c *gin.Context) {
 
 // Handover Notify is send by the target gNB to the Control Plane.
 // Upon the reception of Handover Notify, the Control Plane may:
-// 1. update DL rules if UPF-i have been updated during the handover
-// 2. update DL rule in the UPF-i if direct forwarding was used
-// 3. remove forwarding DL rule in UPF-i if indirect forwarding was used
-// 4. release rules for the old DL path (from source upf-a to source gNB)
-// 5. if target area != source area: release rules for the old UL path (from source upf-i to source upf-a)
+// 1. update DL rule in the UPF-i if direct forwarding was used
+// 2. create new DL rules if sourceArea != targetArea
+// 3. release old DL rules if sourceArea != targetArea
+// 4. release rules for the old UL path (from source upf-i to source upf-a) if target area != source area:
+// 5. release forwarding DL rule in UPF-i if sourceArea != targetArea
 func (amf *Amf) HandleHandoverNotify(m n1n2.HandoverNotify) {
 	ctx := amf.Context()
+	sourceArea, ok := amf.smf.Areas.Area(m.SourceGnb)
+	if !ok {
+		logrus.WithFields(logrus.Fields{
+			"source-gnb": m.SourceGnb,
+		}).Error("Unknown Area for source gNB")
+		return
+	}
+	targetArea, ok := amf.smf.Areas.Area(m.TargetGnb)
+	if !ok {
+		logrus.WithFields(logrus.Fields{
+			"target-gnb": m.TargetGnb,
+		}).Error("Unknown Area for target gNB")
+		return
+	}
 	for _, s := range m.Sessions {
 		indirectForwardingRequired, err := amf.smf.GetSessionIndirectForwardingRequired(m.UeCtrl, s.Addr, s.Dnn)
 		if err != nil {
 			// TODO: notify of failure
 			continue
 		}
-		// step 1: TODO
-		// step 2: update DL rule in the UPF-i if direct forwarding was used
+		// step 1: update DL rule (only update FAR) in the UPF-i if direct forwarding was used
 		if !indirectForwardingRequired {
 			if err := amf.smf.UpdateSessionDownlinkContext(ctx, m.UeCtrl, s.Addr, s.Dnn, m.SourceGnb); err != nil {
 				logrus.WithError(err).WithFields(logrus.Fields{
@@ -58,9 +71,26 @@ func (amf *Amf) HandleHandoverNotify(m n1n2.HandoverNotify) {
 				}).Error("Handover Notify: could not update session downlink path")
 			}
 		}
-		// step 3: TODO
-		// step 4: TODO
-		// step 5: TODO
+		if sourceArea != targetArea {
+			// step 2. create new DL rules if sourceArea != targetArea
+			nextDlFteid, err := amf.smf.GetNextDownlinkFteid(m.UeCtrl, s.Addr, s.Dnn)
+			if err != nil {
+				// TODO: notify of failure
+			}
+			_, err = amf.smf.CreateSessionDownlinkContext(ctx, m.UeCtrl, s.Addr, s.Dnn, m.TargetGnb, *nextDlFteid)
+			if err != nil {
+				// TODO: notify of failure
+				continue
+			}
+
+			// step 3. TODO: release old DL rules if sourceArea != targetArea
+			// NOTE: until this step is implemented, handover across areas will **NOT** work when sourceUPFA == targetUPFA
+			// step 4. TODO: release rules for the old UL path (from source upf-i to source upf-a) if target area != source area:
+			// step 5. TODO: release forwarding DL rule in UPF-i if sourceArea != targetArea
+		}
+		if indirectForwardingRequired {
+			amf.smf.SetSessionIndirectForwardingRequired(m.UeCtrl, s.Addr, s.Dnn, false)
+		}
 
 	}
 }

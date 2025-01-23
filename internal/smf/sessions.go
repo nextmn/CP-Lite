@@ -65,6 +65,17 @@ func (s *SessionsMap) SetNextDownlinkFteid(ueCtrl jsonapi.ControlURI, ueAddr net
 	return ErrPDUSessionNotFound
 }
 
+func (s *SessionsMap) GetNextDownlinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr) (*jsonapi.Fteid, error) {
+	s.Lock()
+	defer s.Unlock()
+	if sessions, ok := s.m[ueCtrl]; ok {
+		if session, ok := sessions.s[ueAddr]; ok {
+			return session.NextDownlinkFteid, nil
+		}
+	}
+	return nil, ErrPDUSessionNotFound
+}
+
 func (s *SessionsMap) SetUplinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, fteid *jsonapi.Fteid) error {
 	s.Lock()
 	defer s.Unlock()

@@ -385,6 +385,14 @@ func (smf *Smf) StoreNextDownlinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.A
 	return slice.(*Slice).sessions.SetNextDownlinkFteid(ueCtrl, ueAddr, fteid)
 }
 
+func (smf *Smf) GetNextDownlinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn string) (*jsonapi.Fteid, error) {
+	slice, ok := smf.slices.Load(dnn)
+	if !ok {
+		return nil, ErrDnnNotFound
+	}
+	return slice.(*Slice).sessions.GetNextDownlinkFteid(ueCtrl, ueAddr)
+}
+
 func (smf *Smf) UpdateSessionDownlink(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn string, oldGnbCtrl jsonapi.ControlURI) error {
 	return smf.UpdateSessionDownlinkContext(smf.ctx, ueCtrl, ueAddr, dnn, oldGnbCtrl)
 }
