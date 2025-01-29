@@ -155,7 +155,7 @@ func (smf *Smf) CreateSessionDownlinkContext(ctx context.Context, ueCtrl jsonapi
 		upf := upf_any.(*Upf)
 
 		var far_id uint32
-		if i == len(slice.Upfs)-1 {
+		if i == len(path)-1 {
 			far_id = upf.UpdateDownlinkAnchor(session.UeIpAddr, dnn, last_fteid)
 		} else {
 			last_fteid, far_id, err = upf.UpdateDownlinkIntermediateContext(ctx, session.UeIpAddr, dnn, gtpInterface.InterfaceAddr, last_fteid)
