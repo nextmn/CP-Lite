@@ -351,6 +351,9 @@ func (upf *Upf) UpdateSession(ue netip.Addr) error {
 	}
 	rules.Lock()
 	defer rules.Unlock()
+	if rules.session == nil {
+		return ErrPDUSessionNotFound
+	}
 	createpdrs, err, _, _ := pfcp.NewPDRMap(rules.createpdrs)
 	if err != nil {
 		return err

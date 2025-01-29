@@ -75,7 +75,7 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 				// TODO: notify failure
 				continue
 			}
-			upfiFwSource, err := amf.smf.SessionFirstUpf(m.UeCtrl, s.Addr, s.Dnn, m.TargetgNB)
+			upfiFwSource, err := amf.smf.SessionFirstUpf(m.UeCtrl, s.Addr, s.Dnn, m.SourcegNB)
 			if err != nil {
 				// TODO: notify failure
 				continue
