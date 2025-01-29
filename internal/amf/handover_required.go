@@ -72,7 +72,7 @@ func (amf *Amf) HandleHandoverRequired(m n1n2.HandoverRequired) {
 		if sourceArea != targetArea {
 			// we could recycle common UL rules, but this is harder than simply
 			// create the target path (and delete the source path at the end of the handover)
-			pduSessionN3, err := amf.smf.CreateSessionUplinkContext(ctx, m.Ue, m.TargetgNB, s.Dnn)
+			pduSessionN3, err := amf.smf.CreateSessionUplinkContext(ctx, m.Ue, s.Addr, m.TargetgNB, s.Dnn)
 			if err != nil {
 				logrus.WithError(err).WithFields(logrus.Fields{
 					"ue":         m.Ue,

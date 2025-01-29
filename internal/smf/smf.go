@@ -231,11 +231,20 @@ func (smf *Smf) SessionFirstUpf(ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn 
 
 }
 
-func (smf *Smf) CreateSessionUplink(ueCtrl jsonapi.ControlURI, gnbCtrl jsonapi.ControlURI, dnn string) (*PduSessionN3, error) {
-	return smf.CreateSessionUplinkContext(smf.ctx, ueCtrl, gnbCtrl, dnn)
+func (smf *Smf) GetNextUeIpAddr(dnn string) (netip.Addr, error) {
+	s, ok := smf.slices.Load(dnn)
+	if !ok {
+		return netip.Addr{}, ErrDnnNotFound
+	}
+	slice := s.(*Slice)
+	return slice.Pool.Next()
 }
 
-func (smf *Smf) CreateSessionUplinkContext(ctx context.Context, ueCtrl jsonapi.ControlURI, gnbCtrl jsonapi.ControlURI, dnn string) (*PduSessionN3, error) {
+func (smf *Smf) CreateSessionUplink(ueCtrl jsonapi.ControlURI, ueIpAddr netip.Addr, gnbCtrl jsonapi.ControlURI, dnn string) (*PduSessionN3, error) {
+	return smf.CreateSessionUplinkContext(smf.ctx, ueCtrl, ueIpAddr, gnbCtrl, dnn)
+}
+
+func (smf *Smf) CreateSessionUplinkContext(ctx context.Context, ueCtrl jsonapi.ControlURI, ueIpAddr netip.Addr, gnbCtrl jsonapi.ControlURI, dnn string) (*PduSessionN3, error) {
 	if !smf.started {
 		return nil, ErrSmfNotStarted
 	}
@@ -257,11 +266,6 @@ func (smf *Smf) CreateSessionUplinkContext(ctx context.Context, ueCtrl jsonapi.C
 		return nil, ErrDnnNotFound
 	}
 	slice := s.(*Slice)
-	// create ue ip addr
-	ueIpAddr, err := slice.Pool.Next()
-	if err != nil {
-		return nil, err
-	}
 	// create new session
 	// 1. check path
 	area, ok := smf.Areas.Area(gnbCtrl)

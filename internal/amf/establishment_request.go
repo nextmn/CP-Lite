@@ -36,7 +36,17 @@ func (amf *Amf) EstablishmentRequest(c *gin.Context) {
 func (amf *Amf) HandleEstablishmentRequest(ps n1n2.PduSessionEstabReqMsg) {
 	ctx := amf.Context()
 	// TODO: use ctx.WithTimeout()
-	pduSession, err := amf.smf.CreateSessionUplinkContext(ctx, ps.Ue, ps.Gnb, ps.Dnn)
+
+	ueIpAddr, err := amf.smf.GetNextUeIpAddr(ps.Dnn)
+	if err != nil {
+		logrus.WithError(err).WithFields(logrus.Fields{
+			"dnn": ps.Dnn,
+			"ue":  ps.Ue.String(),
+			"gnb": ps.Gnb.String(),
+		}).Error("Could not get next IP Address for this DNN")
+		return
+	}
+	pduSession, err := amf.smf.CreateSessionUplinkContext(ctx, ps.Ue, ueIpAddr, ps.Gnb, ps.Dnn)
 	if err != nil {
 		logrus.WithError(err).Error("Could not create PDU Session Uplink")
 	}
