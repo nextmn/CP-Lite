@@ -67,31 +67,44 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 		if indirectForwardingRequired {
 			dl, err := amf.smf.GetSessionDownlinkFteid(m.UeCtrl, s.Addr, s.Dnn)
 			if err != nil {
+				logrus.WithError(err).Error("could not get session downlink fteid")
 				// TODO: notify of failure
 				continue
 			}
 			upfiFwTarget, err := amf.smf.SessionFirstUpf(m.UeCtrl, s.Addr, s.Dnn, m.TargetgNB)
 			if err != nil {
+				logrus.WithError(err).Error("upfi-fw-target not found")
 				// TODO: notify failure
 				continue
 			}
 			upfiFwSource, err := amf.smf.SessionFirstUpf(m.UeCtrl, s.Addr, s.Dnn, m.SourcegNB)
 			if err != nil {
+				logrus.WithError(err).Error("upfi-fw-source not found")
 				// TODO: notify failure
 				continue
 			}
 			if s.DownlinkFteid == nil {
 				// TODO: notify failure
+				logrus.WithError(err).Error("downlink fteid si nil")
 				continue
 			}
 			// store DownlinkFteid to update the DL path upon reception of Handover Notfify
 			if err := amf.smf.StoreNextDownlinkFteid(m.UeCtrl, s.Addr, s.Dnn, s.DownlinkFteid); err != nil {
+				logrus.WithError(err).Error("Could not store next downlink fteid")
 				// TODO: notify of failure
 				continue
 			}
 			// push new (temporary) DL rule on target UPF-i only (FAR: to target gNB) [DL-TI]
 			fwFteidTarget, err := amf.smf.CreateSessionDownlinkFWUpfIContext(ctx, m.UeCtrl, s.Addr, s.Dnn, upfiFwTarget, *s.DownlinkFteid)
 			if err != nil {
+				logrus.WithError(err).WithFields(logrus.Fields{
+					"ue-ctrl":           m.UeCtrl,
+					"ue-addr":           s.Addr,
+					"dnn":               s.Dnn,
+					"upfifwtarget":      upfiFwTarget.NodeID,
+					"downlink-gtp-addr": s.DownlinkFteid.Addr,
+					"downlink-teid":     s.DownlinkFteid.Teid,
+				}).Error("Could not push temporary DL rule on target UPF-i")
 				// TODO: notify failure
 				continue
 			}
@@ -99,6 +112,7 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 				// push (temporary) forwarding rule on source UPF-i only (FAR: to <DL-TI>))
 				fwFteidSource, err := amf.smf.CreateSessionDownlinkFWUpfIContext(ctx, m.UeCtrl, s.Addr, s.Dnn, upfiFwSource, *fwFteidTarget)
 				if err != nil {
+					logrus.WithError(err).Error("Could not push temporary DL rule on source UPF-i")
 					// TODO: notify failure
 					continue
 				}
