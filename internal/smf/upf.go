@@ -142,7 +142,7 @@ func (upf *Upf) CreateUplinkIntermediateWithFteid(ueIp netip.Addr, dnn string, l
 			ie.NewSourceInterface(ie.SrcInterfaceAccess),
 			ie.NewFTEID(FteidTypeIPv4, listenFteid.Teid, listenFteid.Addr.AsSlice(), nil, 0),
 			ie.NewNetworkInstance(dnn),
-			ie.NewUEIPAddress(UEIpAddrTypeIPv4, ueIp.String(), "", 0, 0),
+			ie.NewUEIPAddress(UEIpAddrTypeIPv4Source, ueIp.String(), "", 0, 0),
 		),
 		ie.NewOuterHeaderRemoval(OuterHeaderRemoveGtpuUdpIpv4, 0),
 		ie.NewFARID(r.currentfarid),
@@ -189,7 +189,7 @@ func (upf *Upf) CreateUplinkAnchorWithFteid(ueIp netip.Addr, dnn string, listenF
 			ie.NewSourceInterface(ie.SrcInterfaceAccess),
 			ie.NewFTEID(FteidTypeIPv4, listenFteid.Teid, listenFteid.Addr.AsSlice(), nil, 0),
 			ie.NewNetworkInstance(dnn),
-			ie.NewUEIPAddress(UEIpAddrTypeIPv4, ueIp.String(), "", 0, 0),
+			ie.NewUEIPAddress(UEIpAddrTypeIPv4Source, ueIp.String(), "", 0, 0),
 		),
 		ie.NewOuterHeaderRemoval(OuterHeaderRemoveGtpuUdpIpv4, 0),
 		ie.NewFARID(r.currentfarid),
@@ -213,7 +213,7 @@ func (upf *Upf) UpdateDownlinkAnchor(ueIp netip.Addr, dnn string, forwardFteid *
 	r.createpdrs = append(r.createpdrs, ie.NewCreatePDR(ie.NewPDRID(r.currentpdrid), ie.NewPrecedence(255),
 		ie.NewPDI(ie.NewSourceInterface(ie.SrcInterfaceCore),
 			ie.NewNetworkInstance(dnn),
-			ie.NewUEIPAddress(UEIpAddrTypeIPv4, ueIp.String(), "", 0, 0),
+			ie.NewUEIPAddress(UEIpAddrTypeIPv4Destination, ueIp.String(), "", 0, 0),
 		),
 		ie.NewFARID(r.currentfarid),
 	),
@@ -279,20 +279,7 @@ func (upf *Upf) UpdateDownlinkIntermediateWithFteid(ueIp netip.Addr, dnn string,
 			ie.NewSourceInterface(ie.SrcInterfaceCore),
 			ie.NewFTEID(FteidTypeIPv4, listenFteid.Teid, listenFteid.Addr.AsSlice(), nil, 0),
 			ie.NewNetworkInstance(dnn),
-			// Free5GC's UPF seems to drop GTP packets, when UE IP Address is present
-			// and for downlink only
-			// According to TS 129.244 version 17.4.0, section 7.5.2.2, table 7.5.2.2-2, p. 159:
-			// "If present, this IE shall identify the UE IP address as
-			// the source or destination IP address to match for the incoming packet"
-			// Here, it seems that when the packet is GTP encapsulated, only the source address is checked.
-			// This is a bug.
-			// As a workaround, we don't add the UE IP Address in this case.
-			// Free5GC's SMF implementation has a similar workaround:
-			// https://github.com/free5gc/smf/blob/62925c4a5840f118b42f245b5fef492898f9f0bd/internal/context/datapath.go#L636-L640
-			// and the bug seems to be referenced as "FR5GC-1029" (but I have no link to the details of the issue)
-			// XXX: the following line may be uncommented if the bug is fixed:
-
-			// ie.NewUEIPAddress(UEIpAddrTypeIPv4, ueIp.String(), "", 0, 0),
+			ie.NewUEIPAddress(UEIpAddrTypeIPv4Destination, ueIp.String(), "", 0, 0),
 		),
 		ie.NewOuterHeaderRemoval(OuterHeaderRemoveGtpuUdpIpv4, 0),
 		ie.NewFARID(r.currentfarid),
