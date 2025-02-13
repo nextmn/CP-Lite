@@ -22,7 +22,7 @@ import (
 )
 
 func main() {
-	logger.Init("NextMN-UE Lite")
+	logger.Init("NextMN-CP Lite")
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 	app := &cli.App{
