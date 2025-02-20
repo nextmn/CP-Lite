@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"sync"
 
+	"github.com/nextmn/cp-lite/internal/common"
 	"github.com/nextmn/cp-lite/internal/config"
 
 	pfcp "github.com/nextmn/go-pfcp-networking/pfcp"
@@ -38,12 +39,10 @@ func NewUpfsMap(slices map[string]config.Slice) *UpfsMap {
 }
 
 type Upf struct {
+	common.WithContext
 	association pfcpapi.PFCPAssociationInterface
 	interfaces  map[netip.Addr]*UpfInterface
 	sessions    map[netip.Addr]*Pfcprules
-
-	// not exported because must not be modified
-	ctx context.Context
 }
 
 func NewUpf(interfaces []config.Interface) *Upf {
@@ -55,13 +54,12 @@ func NewUpf(interfaces []config.Interface) *Upf {
 }
 
 func (upf *Upf) Associate(ctx context.Context, a pfcpapi.PFCPAssociationInterface) error {
-	if ctx == nil {
-		return ErrNilCtx
+	if err := upf.InitContext(ctx); err != nil {
+		return err
 	}
-	upf.ctx = ctx
 	// Initialize TeidPools
 	for _, iface := range upf.interfaces {
-		if err := iface.Teids.Init(ctx); err != nil {
+		if err := iface.Teids.InitContext(ctx); err != nil {
 			return err
 		}
 	}
@@ -79,18 +77,19 @@ func (upf *Upf) Rules(ueIp netip.Addr) *Pfcprules {
 }
 
 func (upf *Upf) NextListenFteid(listenInterface netip.Addr) (*jsonapi.Fteid, error) {
-	return upf.NextListenFteidContext(upf.ctx, listenInterface)
+	return upf.NextListenFteidContext(upf.Context(), listenInterface)
 }
 
 func (upf *Upf) NextListenFteidContext(ctx context.Context, listenInterface netip.Addr) (*jsonapi.Fteid, error) {
-	if ctx == nil || upf.ctx == nil {
+	upfCtx := upf.Context()
+	if ctx == nil {
 		return nil, ErrNilCtx
 	}
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
-	case <-upf.ctx.Done():
-		return nil, upf.ctx.Err()
+	case <-upfCtx.Done():
+		return nil, upfCtx.Err()
 	default:
 	}
 	iface, ok := upf.interfaces[listenInterface]
@@ -108,18 +107,19 @@ func (upf *Upf) NextListenFteidContext(ctx context.Context, listenInterface neti
 }
 
 func (upf *Upf) CreateUplinkIntermediate(ueIp netip.Addr, dnn string, listenInterface netip.Addr, forwardFteid *jsonapi.Fteid) (*jsonapi.Fteid, error) {
-	return upf.CreateUplinkIntermediateContext(upf.ctx, ueIp, dnn, listenInterface, forwardFteid)
+	return upf.CreateUplinkIntermediateContext(upf.Context(), ueIp, dnn, listenInterface, forwardFteid)
 }
 
 func (upf *Upf) CreateUplinkIntermediateContext(ctx context.Context, ueIp netip.Addr, dnn string, listenInterface netip.Addr, forwardFteid *jsonapi.Fteid) (*jsonapi.Fteid, error) {
-	if ctx == nil || upf.ctx == nil {
+	if ctx == nil {
 		return nil, ErrNilCtx
 	}
+	upfCtx := upf.Context()
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
-	case <-upf.ctx.Done():
-		return nil, upf.ctx.Err()
+	case <-upfCtx.Done():
+		return nil, upfCtx.Err()
 	default:
 	}
 	listenFteid, err := upf.NextListenFteidContext(ctx, listenInterface)
@@ -163,7 +163,7 @@ func (upf *Upf) CreateUplinkIntermediateWithFteid(ueIp netip.Addr, dnn string, l
 }
 
 func (upf *Upf) CreateUplinkAnchor(ueIp netip.Addr, dnn string, listenInterface netip.Addr) (*jsonapi.Fteid, error) {
-	return upf.CreateUplinkAnchorContext(upf.ctx, ueIp, dnn, listenInterface)
+	return upf.CreateUplinkAnchorContext(upf.Context(), ueIp, dnn, listenInterface)
 }
 func (upf *Upf) CreateUplinkAnchorContext(ctx context.Context, ueIp netip.Addr, dnn string, listenInterface netip.Addr) (*jsonapi.Fteid, error) {
 	if ctx == nil {
@@ -254,7 +254,7 @@ func (upf *Upf) UpdateDownlinkIntermediateDirectForward(ueIp netip.Addr, dnn str
 }
 
 func (upf *Upf) UpdateDownlinkIntermediate(ueIp netip.Addr, dnn string, listenInterface netip.Addr, forwardFteid *jsonapi.Fteid) (*jsonapi.Fteid, uint32, error) {
-	return upf.UpdateDownlinkIntermediateContext(upf.ctx, ueIp, dnn, listenInterface, forwardFteid)
+	return upf.UpdateDownlinkIntermediateContext(upf.Context(), ueIp, dnn, listenInterface, forwardFteid)
 }
 func (upf *Upf) UpdateDownlinkIntermediateContext(ctx context.Context, ueIp netip.Addr, dnn string, listenInterface netip.Addr, forwardFteid *jsonapi.Fteid) (*jsonapi.Fteid, uint32, error) {
 	if ctx == nil {

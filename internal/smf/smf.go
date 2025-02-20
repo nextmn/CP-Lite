@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/nextmn/cp-lite/internal/common"
 	"github.com/nextmn/cp-lite/internal/config"
 
 	pfcp "github.com/nextmn/go-pfcp-networking/pfcp"
@@ -20,15 +21,14 @@ import (
 )
 
 type Smf struct {
+	common.WithContext
+
 	upfs    *UpfsMap
 	slices  *SlicesMap
 	Areas   AreasMap
 	srv     *pfcp.PFCPEntityCP
 	started bool
 	closed  chan struct{}
-
-	// not exported because must not be modified
-	ctx context.Context
 }
 
 func NewSmf(addr netip.Addr, slices map[string]config.Slice, areas map[string]config.Area) *Smf {
@@ -40,7 +40,6 @@ func NewSmf(addr netip.Addr, slices map[string]config.Slice, areas map[string]co
 		upfs:   upfs,
 		Areas:  NewAreasMap(areas),
 		closed: make(chan struct{}),
-		ctx:    nil,
 	}
 }
 
@@ -48,10 +47,9 @@ func (smf *Smf) Start(ctx context.Context) error {
 	if smf.started {
 		return ErrSmfAlreadyStarted
 	}
-	if ctx == nil {
-		return ErrNilCtx
+	if err := smf.InitContext(ctx); err != nil {
+		return err
 	}
-	smf.ctx = ctx
 	logrus.Info("Starting PFCP Server")
 	go func() {
 		defer func() {
@@ -94,15 +92,8 @@ func (smf *Smf) Start(ctx context.Context) error {
 	return nil
 }
 
-func (smf *Smf) Context() context.Context {
-	if smf.ctx != nil {
-		return smf.ctx
-	}
-	return context.Background()
-}
-
 func (smf *Smf) CreateSessionDownlink(ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn string, gnbCtrl jsonapi.ControlURI, gnbFteid jsonapi.Fteid) (*PduSessionN3, error) {
-	return smf.CreateSessionDownlinkContext(smf.ctx, ueCtrl, ueIp, dnn, gnbCtrl, gnbFteid)
+	return smf.CreateSessionDownlinkContext(smf.Context(), ueCtrl, ueIp, dnn, gnbCtrl, gnbFteid)
 }
 
 func (smf *Smf) CreateSessionDownlinkContext(ctx context.Context, ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn string, gnbCtrl jsonapi.ControlURI, gnbFteid jsonapi.Fteid) (*PduSessionN3, error) {
@@ -112,13 +103,14 @@ func (smf *Smf) CreateSessionDownlinkContext(ctx context.Context, ueCtrl jsonapi
 	if ctx == nil {
 		return nil, ErrNilCtx
 	}
+	smfCtx := smf.Context()
 	select {
 	case <-ctx.Done():
 		// if ctx is over, abort
 		return nil, ctx.Err()
-	case <-smf.ctx.Done():
+	case <-smfCtx.Done():
 		// if smf.ctx is over, abort
-		return nil, smf.ctx.Err()
+		return nil, smfCtx.Err()
 	default:
 	}
 	// check for existing session
@@ -178,13 +170,14 @@ func (smf *Smf) CreateSessionDownlinkFWUpfIContext(ctx context.Context, ueCtrl j
 	if ctx == nil {
 		return nil, ErrNilCtx
 	}
+	smfCtx := smf.Context()
 	select {
 	case <-ctx.Done():
 		// if ctx is over, abort
 		return nil, ctx.Err()
-	case <-smf.ctx.Done():
+	case <-smfCtx.Done():
 		// if smf.ctx is over, abort
-		return nil, smf.ctx.Err()
+		return nil, smfCtx.Err()
 	default:
 	}
 
@@ -241,7 +234,7 @@ func (smf *Smf) GetNextUeIpAddr(dnn string) (netip.Addr, error) {
 }
 
 func (smf *Smf) CreateSessionUplink(ueCtrl jsonapi.ControlURI, ueIpAddr netip.Addr, gnbCtrl jsonapi.ControlURI, dnn string) (*PduSessionN3, error) {
-	return smf.CreateSessionUplinkContext(smf.ctx, ueCtrl, ueIpAddr, gnbCtrl, dnn)
+	return smf.CreateSessionUplinkContext(smf.Context(), ueCtrl, ueIpAddr, gnbCtrl, dnn)
 }
 
 func (smf *Smf) CreateSessionUplinkContext(ctx context.Context, ueCtrl jsonapi.ControlURI, ueIpAddr netip.Addr, gnbCtrl jsonapi.ControlURI, dnn string) (*PduSessionN3, error) {
@@ -251,13 +244,14 @@ func (smf *Smf) CreateSessionUplinkContext(ctx context.Context, ueCtrl jsonapi.C
 	if ctx == nil {
 		return nil, ErrNilCtx
 	}
+	smfCtx := smf.Context()
 	select {
 	case <-ctx.Done():
 		// if ctx is over, abort
 		return nil, ctx.Err()
-	case <-smf.ctx.Done():
+	case <-smfCtx.Done():
 		// if smf.ctx is over, abort
-		return nil, smf.ctx.Err()
+		return nil, smfCtx.Err()
 	default:
 	}
 	// check for existing session
@@ -398,7 +392,7 @@ func (smf *Smf) GetNextDownlinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Add
 }
 
 func (smf *Smf) UpdateSessionDownlink(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn string, oldGnbCtrl jsonapi.ControlURI) error {
-	return smf.UpdateSessionDownlinkContext(smf.ctx, ueCtrl, ueAddr, dnn, oldGnbCtrl)
+	return smf.UpdateSessionDownlinkContext(smf.Context(), ueCtrl, ueAddr, dnn, oldGnbCtrl)
 }
 
 // Updates Session to NextDownlinkFteid
