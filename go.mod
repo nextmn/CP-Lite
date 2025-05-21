@@ -6,7 +6,7 @@ toolchain go1.23.5
 
 require (
 	github.com/adrg/xdg v0.5.3
-	github.com/gin-gonic/gin v1.10.0
+	github.com/gin-gonic/gin v1.10.1
 	github.com/nextmn/go-pfcp-networking v0.0.42
 	github.com/nextmn/json-api v0.0.19
 	github.com/nextmn/logrus-formatter v0.0.1
