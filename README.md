@@ -16,7 +16,7 @@ If you don't need to use handover procedures, consider using [UERANSIM](https://
 Simply run `make build` and `make install`.
 
 ## Author
-Louis Royer
+Louis Royer and the NextMN Contributors
 
 ## Licence
 MIT
