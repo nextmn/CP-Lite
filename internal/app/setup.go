@@ -36,12 +36,10 @@ func (s *Setup) Run(ctx context.Context) error {
 	if err := s.amf.Start(ctx); err != nil {
 		return err
 	}
-	select {
-	case <-ctx.Done():
-		ctxShutdown, cancel := context.WithTimeout(ctx, 1*time.Second)
-		defer cancel()
-		s.amf.WaitShutdown(ctxShutdown)
-		s.smf.WaitShutdown(ctxShutdown)
-	}
+	<-ctx.Done()
+	ctxShutdown, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+	s.amf.WaitShutdown(ctxShutdown)
+	s.smf.WaitShutdown(ctxShutdown)
 	return nil
 }
