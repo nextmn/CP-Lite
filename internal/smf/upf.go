@@ -302,7 +302,7 @@ func (upf *Upf) UpdateDownlinkIntermediateWithFteid(ueIp netip.Addr, dnn string,
 	return r.currentfarid
 }
 
-func (upf *Upf) CreateSession(ue netip.Addr) error {
+func (upf *Upf) CreateSession(ctx context.Context, ue netip.Addr) error {
 	rules, ok := upf.sessions[ue]
 	if !ok {
 		return ErrNoPFCPRule
@@ -310,18 +310,18 @@ func (upf *Upf) CreateSession(ue netip.Addr) error {
 	rules.Lock()
 	defer rules.Unlock()
 
-	createpdrs, err, _, _ := pfcp.NewPDRMap(rules.createpdrs)
+	createpdrs, _, _, err := pfcp.NewPDRMap(rules.createpdrs)
 	if err != nil {
 		return err
 	}
-	createfars, err, _, _ := pfcp.NewFARMap(rules.createfars)
+	createfars, _, _, err := pfcp.NewFARMap(rules.createfars)
 	if err != nil {
 		return err
 	}
 	if upf.association == nil {
 		return ErrUpfNotAssociated
 	}
-	rules.session, err = upf.association.CreateSession(nil, createpdrs, createfars)
+	rules.session, err = upf.association.CreateSession(ctx, nil, createpdrs, createfars)
 	if err != nil {
 		return err
 	}
@@ -341,19 +341,19 @@ func (upf *Upf) UpdateSession(ue netip.Addr) error {
 	if rules.session == nil {
 		return ErrPDUSessionNotFound
 	}
-	createpdrs, err, _, _ := pfcp.NewPDRMap(rules.createpdrs)
+	createpdrs, _, _, err := pfcp.NewPDRMap(rules.createpdrs)
 	if err != nil {
 		return err
 	}
-	createfars, err, _, _ := pfcp.NewFARMap(rules.createfars)
+	createfars, _, _, err := pfcp.NewFARMap(rules.createfars)
 	if err != nil {
 		return err
 	}
-	updatepdrs, err, _, _ := pfcp.NewPDRMap(rules.updatepdrs)
+	updatepdrs, _, _, err := pfcp.NewPDRMap(rules.updatepdrs)
 	if err != nil {
 		return err
 	}
-	updatefars, err, _, _ := pfcp.NewFARMapUpdate(rules.updatefars)
+	updatefars, _, _, err := pfcp.NewFARMapUpdate(rules.updatefars)
 	if err != nil {
 		return err
 	}
