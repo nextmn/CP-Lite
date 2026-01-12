@@ -43,9 +43,7 @@ func NewAmf(bindAddr netip.AddrPort, control jsonapi.ControlURI, userAgent strin
 		closed:    make(chan struct{}),
 	}
 	gin.SetMode(gin.ReleaseMode)
-	r := gin.New()
-	r.Use(gin.Recovery())
-	r.Use(ginlogger.LoggingMiddleware)
+	r := ginlogger.Default()
 	r.GET("/status", Status)
 
 	// PDU Sessions
@@ -83,8 +81,8 @@ func (amf *Amf) Start(ctx context.Context) error {
 		<-ctx.Done()
 		ctxShutdown, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
-		if err := amf.srv.Shutdown(ctxShutdown); err != nil {
-			logrus.WithError(err).Info("HTTP Server Shutdown")
+		if err := amf.srv.Shutdown(ctxShutdown); err == nil {
+			logrus.Info("HTTP Server Shutdown")
 		}
 	}(ctx)
 	return nil

@@ -29,7 +29,21 @@ func NewSetup(config *config.CPConfig) *Setup {
 	}
 }
 
+func (s *Setup) waitShutdown(ctx context.Context) {
+	if s.amf != nil {
+		s.amf.WaitShutdown(ctx)
+	}
+	if s.smf != nil {
+		s.smf.WaitShutdown(ctx)
+	}
+}
+
 func (s *Setup) Run(ctx context.Context) error {
+	defer func() {
+		ctxShutdown, cancel := context.WithTimeout(context.WithoutCancel(ctx), 1*time.Second)
+		defer cancel()
+		s.waitShutdown(ctxShutdown)
+	}()
 	if err := s.smf.Start(ctx); err != nil {
 		return err
 	}
@@ -37,9 +51,5 @@ func (s *Setup) Run(ctx context.Context) error {
 		return err
 	}
 	<-ctx.Done()
-	ctxShutdown, cancel := context.WithTimeout(ctx, 1*time.Second)
-	defer cancel()
-	s.amf.WaitShutdown(ctxShutdown)
-	s.smf.WaitShutdown(ctxShutdown)
 	return nil
 }
