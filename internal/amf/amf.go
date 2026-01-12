@@ -17,6 +17,7 @@ import (
 
 	"github.com/nextmn/json-api/healthcheck"
 	"github.com/nextmn/json-api/jsonapi"
+	"github.com/nextmn/logrus-formatter/ginlogger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -41,8 +42,10 @@ func NewAmf(bindAddr netip.AddrPort, control jsonapi.ControlURI, userAgent strin
 		smf:       smf,
 		closed:    make(chan struct{}),
 	}
-	// TODO: gin.SetMode(gin.DebugMode) / gin.SetMode(gin.ReleaseMode) depending on log level
-	r := gin.Default()
+	gin.SetMode(gin.ReleaseMode)
+	r := gin.New()
+	r.Use(gin.Recovery())
+	r.Use(ginlogger.LoggingMiddleware)
 	r.GET("/status", Status)
 
 	// PDU Sessions
