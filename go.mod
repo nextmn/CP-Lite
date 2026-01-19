@@ -1,11 +1,11 @@
 module github.com/nextmn/cp-lite
 
-go 1.25.5
+go 1.25.6
 
 require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/nextmn/cli-xdg v0.0.1
-	github.com/nextmn/go-pfcp-networking v0.0.42
+	github.com/nextmn/go-pfcp-networking v0.0.43-0.20260111201636-7b8fe7a6c0d1
 	github.com/nextmn/json-api v0.1.1
 	github.com/nextmn/logrus-formatter v0.2.1
 	github.com/sirupsen/logrus v1.9.4

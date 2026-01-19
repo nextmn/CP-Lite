@@ -52,8 +52,8 @@ github.com/modern-go/reflect2 v1.0.2 h1:xBagoLtFs94CBntxluKeaWgTMpvLxC4ur3nMaC9G
 github.com/modern-go/reflect2 v1.0.2/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
 github.com/nextmn/cli-xdg v0.0.1 h1:IboSpc2dPINT9/ErwW+9rVFmckaMp7s/oEMx5+kDgL4=
 github.com/nextmn/cli-xdg v0.0.1/go.mod h1:Uzay2Eepw4hfwNVHa6KWnb2mj/Cxiyh4iFllbzkavdc=
-github.com/nextmn/go-pfcp-networking v0.0.42 h1:kYcGyIUMe/RVt3DpvDOKJt4+UbScIewDBMSQWLruusE=
-github.com/nextmn/go-pfcp-networking v0.0.42/go.mod h1:KYoKLiltDmHL2YMU5mz2k/E1xMoz4TpmzTz6Nr5u5gA=
+github.com/nextmn/go-pfcp-networking v0.0.43-0.20260111201636-7b8fe7a6c0d1 h1:iwdh7qHNErXJruVl2bvTMp1u6IS0IYw3vVj5gq8+C5w=
+github.com/nextmn/go-pfcp-networking v0.0.43-0.20260111201636-7b8fe7a6c0d1/go.mod h1:LC4Bjbr/XLD4Mt5K3O8mERnFsbFNQmXTp7sshGkQeIA=
 github.com/nextmn/json-api v0.1.1 h1:uTTfP8BUq23222TJylJmML9KmlDjN7msqX4Emx+DRlM=
 github.com/nextmn/json-api v0.1.1/go.mod h1:b42fn9zSrVutyfkQN3rtMHEc9Ll/ZhX3T0CczaQy/fc=
 github.com/nextmn/logrus-formatter v0.2.1 h1:VPPeRiUd3wLKQUiRe3l39VmKkRVjxUDCAcwztlScV5M=
