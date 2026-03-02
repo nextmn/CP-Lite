@@ -70,7 +70,7 @@ func (smf *Smf) Start(ctx context.Context) error {
 	smf.upfs.Range(func(key, value any) bool {
 		nodeId := key.(netip.Addr)
 		upf := value.(*Upf)
-		association, err := smf.srv.NewEstablishedPFCPAssociation(ie.NewNodeIDHeuristic(nodeId.String()))
+		association, err := smf.srv.NewEstablishedPFCPAssociation(ctx, ie.NewNodeIDHeuristic(nodeId.String()))
 		if err != nil {
 			logrus.WithError(err).WithFields(logrus.Fields{
 				"upf": nodeId,
@@ -286,7 +286,7 @@ func (smf *Smf) CreateSessionUplinkContext(ctx context.Context, ueCtrl jsonapi.C
 	if err != nil {
 		return nil, err
 	}
-	if err := upfa.CreateSession(ueIpAddr); err != nil {
+	if err := upfa.CreateSession(ctx, ueIpAddr); err != nil {
 		return nil, err
 	}
 
@@ -303,7 +303,7 @@ func (smf *Smf) CreateSessionUplinkContext(ctx context.Context, ueCtrl jsonapi.C
 			logrus.WithError(err).Error("Could not create uplink intermediate")
 			return nil, err
 		}
-		if err := upf.CreateSession(ueIpAddr); err != nil {
+		if err := upf.CreateSession(ctx, ueIpAddr); err != nil {
 			logrus.WithError(err).Error("Could not create session uplink")
 			return nil, err
 		}
