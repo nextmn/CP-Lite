@@ -7,6 +7,7 @@ package amf
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -130,7 +131,19 @@ func (amf *Amf) HandleHandoverRequired(m n1n2.HandoverRequired) {
 	}
 	req.Header.Set("User-Agent", amf.userAgent)
 	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
-	if _, err := amf.client.Do(req); err != nil {
-		logrus.WithError(err).Error("Could not send ps/handover-request")
+
+	// send request after one-way-delay is over
+	ctxDelay, cancel := context.WithTimeout(ctx, amf.n2.OneWayDelay(m.TargetgNB))
+	defer cancel()
+	select {
+	case <-ctxDelay.Done():
+		select {
+		case <-ctx.Done():
+			logrus.WithError(err).Error("Context was done before sending ps/handover-request")
+		default:
+			if _, err := amf.client.Do(req); err != nil {
+				logrus.WithError(err).Error("Could not send ps/handover-request")
+			}
+		}
 	}
 }

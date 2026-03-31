@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/nextmn/cp-lite/internal/common"
+	"github.com/nextmn/cp-lite/internal/config"
 	"github.com/nextmn/cp-lite/internal/smf"
 
 	"github.com/nextmn/json-api/healthcheck"
@@ -26,6 +27,7 @@ import (
 type Amf struct {
 	common.WithContext
 
+	n2        N2
 	control   jsonapi.ControlURI
 	client    http.Client
 	userAgent string
@@ -34,8 +36,9 @@ type Amf struct {
 	closed    chan struct{}
 }
 
-func NewAmf(bindAddr netip.AddrPort, control jsonapi.ControlURI, userAgent string, smf *smf.Smf) *Amf {
+func NewAmf(bindAddr netip.AddrPort, control jsonapi.ControlURI, areas map[string]config.Area, userAgent string, smf *smf.Smf) *Amf {
 	amf := Amf{
+		n2:        NewN2(areas),
 		control:   control,
 		client:    http.Client{},
 		userAgent: userAgent,
