@@ -7,6 +7,7 @@ package amf
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -72,7 +73,19 @@ func (amf *Amf) HandleEstablishmentRequest(ps n1n2.PduSessionEstabReqMsg) {
 	}
 	req.Header.Set("User-Agent", amf.userAgent)
 	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
-	if _, err := amf.client.Do(req); err != nil {
-		logrus.WithError(err).Error("Could not send ps/n2-establishment-request")
+
+	// send request after one-way-delay is over
+	ctxDelay, cancel := context.WithTimeout(ctx, amf.n2.OneWayDelay(ps.Gnb))
+	defer cancel()
+	select {
+	case <-ctxDelay.Done():
+		select {
+		case <-ctx.Done():
+			logrus.WithError(ctx.Err()).Error("Context was done before sending ps/n2-establishment-request")
+		default:
+			if _, err := amf.client.Do(req); err != nil {
+				logrus.WithError(err).Error("Could not send ps/n2-establishment-request")
+			}
+		}
 	}
 }

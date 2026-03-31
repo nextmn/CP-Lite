@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/nextmn/json-api/jsonapi"
 
@@ -60,8 +61,9 @@ type Interface struct {
 }
 
 type Area struct {
-	Gnbs  []jsonapi.ControlURI      `yaml:"gnbs"`
-	Paths map[string][]GTPInterface `yaml:"paths"`
+	OneWayDelay time.Duration             `yaml:"one-way-delay"`
+	Gnbs        []jsonapi.ControlURI      `yaml:"gnbs"`
+	Paths       map[string][]GTPInterface `yaml:"paths"`
 }
 
 type GTPInterface struct {
