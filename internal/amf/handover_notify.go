@@ -77,7 +77,7 @@ func (amf *Amf) HandleHandoverNotify(m n1n2.HandoverNotify) {
 			if err != nil {
 				// TODO: notify of failure
 			}
-			_, err = amf.smf.CreateSessionDownlinkContext(ctx, m.UeCtrl, s.Addr, s.Dnn, m.TargetGnb, *nextDlFteid)
+			_, err = amf.smf.CreateSessionDownlink(ctx, m.UeCtrl, s.Addr, s.Dnn, m.TargetGnb, *nextDlFteid)
 			if err != nil {
 				// TODO: notify of failure
 				continue

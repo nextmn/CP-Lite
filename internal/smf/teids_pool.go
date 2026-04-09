@@ -9,13 +9,9 @@ import (
 	"context"
 	"math/rand"
 	"sync"
-
-	"github.com/nextmn/cp-lite/internal/common"
 )
 
 type TEIDsPool struct {
-	common.WithContext
-
 	teids map[uint32]struct{}
 	sync.Mutex
 }
@@ -27,11 +23,9 @@ func NewTEIDsPool() *TEIDsPool {
 }
 
 // Returns next TEID from the pool.
-// warning: the pool must first be initialized using `Init(ctx)`
 func (t *TEIDsPool) Next(ctx context.Context) (uint32, error) {
-	tCtx := t.Context()
 	if ctx == nil {
-		return 0, ErrNilCtx
+		panic("nil context")
 	}
 	t.Lock()
 	defer t.Unlock()
@@ -40,8 +34,6 @@ func (t *TEIDsPool) Next(ctx context.Context) (uint32, error) {
 		select {
 		case <-ctx.Done():
 			return 0, ctx.Err()
-		case <-tCtx.Done():
-			return 0, tCtx.Err()
 		default:
 			teid = rand.Uint32()
 			if teid == 0 {

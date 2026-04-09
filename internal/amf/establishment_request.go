@@ -47,7 +47,7 @@ func (amf *Amf) HandleEstablishmentRequest(ps n1n2.PduSessionEstabReqMsg) {
 		}).Error("Could not get next IP Address for this DNN")
 		return
 	}
-	pduSession, err := amf.smf.CreateSessionUplinkContext(ctx, ps.Ue, ueIpAddr, ps.Gnb, ps.Dnn)
+	pduSession, err := amf.smf.CreateSessionUplink(ctx, ps.Ue, ueIpAddr, ps.Gnb, ps.Dnn)
 	if err != nil {
 		logrus.WithError(err).Error("Could not create PDU Session Uplink")
 	}

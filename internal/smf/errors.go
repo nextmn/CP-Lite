@@ -21,7 +21,6 @@ var (
 	ErrNoPFCPRule          = errors.New("no PFCP rule to push")
 	ErrNoIpAvailableInPool = errors.New("no IP address available in pool")
 
-	ErrNilCtx            = errors.New("nil context")
 	ErrSmfNotStarted     = errors.New("SMF not started")
 	ErrSmfAlreadyStarted = errors.New("SMF already started")
 )
