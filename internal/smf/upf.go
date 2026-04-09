@@ -94,7 +94,7 @@ func (upf *Upf) nextListenFteid(listenInterface netip.Addr) <-chan fteidErr {
 			}
 			c <- fteidErr{&jsonapi.Fteid{
 				Addr: listenInterface,
-				Teid: teid,
+				Teid: uint32(teid),
 			}, nil}
 		}(ctx, listenInterface, ch)
 	}
