@@ -66,9 +66,7 @@ func NewAmf(bindAddr netip.AddrPort, control jsonapi.ControlURI, areas map[strin
 }
 
 func (amf *Amf) Start(ctx context.Context) error {
-	if err := amf.InitContext(ctx); err != nil {
-		return err
-	}
+	amf.InitContext(ctx)
 	l, err := net.Listen("tcp", amf.srv.Addr)
 	if err != nil {
 		return err

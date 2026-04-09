@@ -96,7 +96,7 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 				continue
 			}
 			// push new (temporary) DL rule on target UPF-i only (FAR: to target gNB) [DL-TI]
-			fwFteidTarget, err := amf.smf.CreateSessionDownlinkFWUpfIContext(ctx, m.UeCtrl, s.Addr, s.Dnn, upfiFwTarget, *s.DownlinkFteid)
+			fwFteidTarget, err := amf.smf.CreateSessionDownlinkFWUpfI(ctx, m.UeCtrl, s.Addr, s.Dnn, upfiFwTarget, *s.DownlinkFteid)
 			if err != nil {
 				logrus.WithError(err).WithFields(logrus.Fields{
 					"ue-ctrl":           m.UeCtrl,
@@ -111,7 +111,7 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 			}
 			if sourceArea != targetArea {
 				// push (temporary) forwarding rule on source UPF-i only (FAR: to <DL-TI>))
-				fwFteidSource, err := amf.smf.CreateSessionDownlinkFWUpfIContext(ctx, m.UeCtrl, s.Addr, s.Dnn, upfiFwSource, *fwFteidTarget)
+				fwFteidSource, err := amf.smf.CreateSessionDownlinkFWUpfI(ctx, m.UeCtrl, s.Addr, s.Dnn, upfiFwSource, *fwFteidTarget)
 				if err != nil {
 					logrus.WithError(err).Error("Could not push temporary DL rule on source UPF-i")
 					// TODO: notify failure
