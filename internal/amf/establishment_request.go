@@ -49,7 +49,12 @@ func (amf *Amf) HandleEstablishmentRequest(ps n1n2.PduSessionEstabReqMsg) {
 	}
 	pduSession, err := amf.smf.CreateSessionUplink(ctx, ps.Ue, ueIpAddr, ps.Gnb, ps.Dnn)
 	if err != nil {
-		logrus.WithError(err).Error("Could not create PDU Session Uplink")
+		logrus.WithError(err).WithFields(logrus.Fields{
+			"dnn": ps.Dnn,
+			"ue":  ps.Ue.String(),
+			"gnb": ps.Gnb.String(),
+		}).Error("Could not create PDU Session Uplink")
+		return
 	}
 
 	// send PseAccept to UE
