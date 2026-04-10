@@ -15,6 +15,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type SliceName string
+type AreaName string
+
 func ParseConf(file string) (*CPConfig, error) {
 	var conf CPConfig
 	path, err := filepath.Abs(file)
@@ -33,11 +36,11 @@ func ParseConf(file string) (*CPConfig, error) {
 }
 
 type CPConfig struct {
-	Control Control          `yaml:"control"`
-	Pfcp    netip.Addr       `yaml:"pfcp"`
-	Slices  map[string]Slice `yaml:"slices"`
-	Areas   map[string]Area  `yaml:"areas"`
-	Logger  *Logger          `yaml:"logger,omitempty"`
+	Control Control             `yaml:"control"`
+	Pfcp    netip.Addr          `yaml:"pfcp"`
+	Slices  map[SliceName]Slice `yaml:"slices"`
+	Areas   map[AreaName]Area   `yaml:"areas"`
+	Logger  *Logger             `yaml:"logger,omitempty"`
 }
 
 type Control struct {
@@ -61,9 +64,9 @@ type Interface struct {
 }
 
 type Area struct {
-	OneWayDelay time.Duration             `yaml:"one-way-delay"`
-	Gnbs        []jsonapi.ControlURI      `yaml:"gnbs"`
-	Paths       map[string][]GTPInterface `yaml:"paths"`
+	OneWayDelay time.Duration                `yaml:"one-way-delay"`
+	Gnbs        []jsonapi.ControlURI         `yaml:"gnbs"`
+	Paths       map[SliceName][]GTPInterface `yaml:"paths"`
 }
 
 type GTPInterface struct {

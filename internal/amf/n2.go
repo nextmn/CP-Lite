@@ -17,7 +17,7 @@ type N2 struct {
 	content map[jsonapi.ControlURI]time.Duration
 }
 
-func NewN2(areas map[string]config.Area) N2 {
+func NewN2(areas map[config.AreaName]config.Area) N2 {
 	n := N2{
 		content: make(map[jsonapi.ControlURI]time.Duration),
 	}

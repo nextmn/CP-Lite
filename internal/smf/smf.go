@@ -31,7 +31,7 @@ type Smf struct {
 	closed  chan struct{}
 }
 
-func NewSmf(addr netip.Addr, slices map[string]config.Slice, areas map[string]config.Area) *Smf {
+func NewSmf(addr netip.Addr, slices map[config.SliceName]config.Slice, areas map[config.AreaName]config.Area) *Smf {
 	s := NewSlicesMap(slices, areas)
 	upfs := NewUpfsMap(slices)
 	return &Smf{

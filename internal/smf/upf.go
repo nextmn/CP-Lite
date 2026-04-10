@@ -24,7 +24,7 @@ type UpfsMap struct {
 	sync.Map
 }
 
-func NewUpfsMap(slices map[string]config.Slice) *UpfsMap {
+func NewUpfsMap(slices map[config.SliceName]config.Slice) *UpfsMap {
 	m := UpfsMap{}
 	for _, slice := range slices {
 		for _, upf := range slice.Upfs {
