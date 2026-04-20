@@ -11,6 +11,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/nextmn/cp-lite/internal/config"
+
 	"github.com/nextmn/json-api/jsonapi"
 	"github.com/nextmn/json-api/jsonapi/n1n2"
 
@@ -38,7 +40,7 @@ func (amf *Amf) HandleEstablishmentRequest(ps n1n2.PduSessionEstabReqMsg) {
 	ctx := amf.Context()
 	// TODO: use ctx.WithTimeout()
 
-	ueIpAddr, err := amf.smf.GetNextUeIpAddr(ps.Dnn)
+	ueIpAddr, err := amf.smf.GetNextUeIpAddr(config.SliceName(ps.Dnn))
 	if err != nil {
 		logrus.WithError(err).WithFields(logrus.Fields{
 			"dnn": ps.Dnn,
@@ -47,7 +49,7 @@ func (amf *Amf) HandleEstablishmentRequest(ps n1n2.PduSessionEstabReqMsg) {
 		}).Error("Could not get next IP Address for this DNN")
 		return
 	}
-	pduSession, err := amf.smf.CreateSessionUplink(ctx, ps.Ue, ueIpAddr, ps.Gnb, ps.Dnn)
+	pduSession, err := amf.smf.CreateSessionUplink(ctx, ps.Ue, ueIpAddr, ps.Gnb, config.SliceName(ps.Dnn))
 	if err != nil {
 		logrus.WithError(err).WithFields(logrus.Fields{
 			"dnn": ps.Dnn,

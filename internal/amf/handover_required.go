@@ -11,6 +11,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/nextmn/cp-lite/internal/config"
+
 	"github.com/nextmn/json-api/jsonapi"
 	"github.com/nextmn/json-api/jsonapi/n1n2"
 
@@ -61,7 +63,7 @@ func (amf *Amf) HandleHandoverRequired(m n1n2.HandoverRequired) {
 	for i, s := range m.Sessions {
 		// store type of forwarding for later
 		if m.IndirectForwarding {
-			if err := amf.smf.SetSessionIndirectForwardingRequired(m.Ue, s.Addr, s.Dnn, true); err != nil {
+			if err := amf.smf.SetSessionIndirectForwardingRequired(m.Ue, s.Addr, config.SliceName(s.Dnn), true); err != nil {
 				logrus.WithError(err).WithFields(logrus.Fields{
 					"ue":      m.Ue,
 					"ue-addr": s.Addr,
@@ -73,7 +75,7 @@ func (amf *Amf) HandleHandoverRequired(m n1n2.HandoverRequired) {
 		if sourceArea != targetArea {
 			// we could recycle common UL rules, but this is harder than simply
 			// create the target path (and delete the source path at the end of the handover)
-			pduSessionN3, err := amf.smf.CreateSessionUplink(ctx, m.Ue, s.Addr, m.TargetgNB, s.Dnn)
+			pduSessionN3, err := amf.smf.CreateSessionUplink(ctx, m.Ue, s.Addr, m.TargetgNB, config.SliceName(s.Dnn))
 			if err != nil {
 				logrus.WithError(err).WithFields(logrus.Fields{
 					"ue":         m.Ue,
@@ -90,7 +92,7 @@ func (amf *Amf) HandleHandoverRequired(m n1n2.HandoverRequired) {
 			}
 		} else {
 			// fully reuse existing path
-			uplinkfteid, err := amf.smf.GetSessionUplinkFteid(m.Ue, s.Addr, s.Dnn)
+			uplinkfteid, err := amf.smf.GetSessionUplinkFteid(m.Ue, s.Addr, config.SliceName(s.Dnn))
 			if err != nil {
 				// TODO: notify gnb of failure
 				logrus.WithError(err).WithFields(logrus.Fields{
