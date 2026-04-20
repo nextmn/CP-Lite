@@ -188,7 +188,7 @@ func (smf *Smf) CreateSessionDownlinkFWUpfI(ctx context.Context, ueCtrl jsonapi.
 	return fteid, nil
 }
 
-func (smf *Smf) SessionFirstUpf(ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn string, gnbCtrl jsonapi.ControlURI) (*config.GTPInterface, error) {
+func (smf *Smf) SessionFirstUpf(ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn config.SliceName, gnbCtrl jsonapi.ControlURI) (*config.GTPInterface, error) {
 	s, ok := smf.slices.Load(dnn)
 	if !ok {
 		return nil, ErrDnnNotFound

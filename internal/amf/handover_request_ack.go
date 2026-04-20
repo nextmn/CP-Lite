@@ -74,7 +74,7 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 				// TODO: notify of failure
 				continue
 			}
-			upfiFwTarget, err := amf.smf.SessionFirstUpf(m.UeCtrl, s.Addr, s.Dnn, m.TargetgNB)
+			upfiFwTarget, err := amf.smf.SessionFirstUpf(m.UeCtrl, s.Addr, config.SliceName(s.Dnn), m.TargetgNB)
 			if err != nil {
 				logrus.WithError(err).WithFields(logrus.Fields{
 					"ue":          m.UeCtrl,
@@ -85,7 +85,7 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 				// TODO: notify failure
 				continue
 			}
-			upfiFwSource, err := amf.smf.SessionFirstUpf(m.UeCtrl, s.Addr, s.Dnn, m.SourcegNB)
+			upfiFwSource, err := amf.smf.SessionFirstUpf(m.UeCtrl, s.Addr, config.SliceName(s.Dnn), m.SourcegNB)
 			if err != nil {
 				logrus.WithError(err).Error("upfi-fw-source not found")
 				// TODO: notify failure
