@@ -37,10 +37,19 @@ type Amf struct {
 }
 
 func NewAmf(bindAddr netip.AddrPort, control jsonapi.ControlURI, areas map[config.AreaName]config.Area, userAgent string, smf *smf.Smf) *Amf {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.DialContext = (&net.Dialer{
+		// Force using "rest" interface IP Address
+		LocalAddr: &net.TCPAddr{IP: bindAddr.Addr().AsSlice()},
+		// Same parameters as http.DefaultTransport's Dialer
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}).DialContext
+
 	amf := Amf{
 		n2:        NewN2(areas),
 		control:   control,
-		client:    http.Client{},
+		client:    http.Client{Transport: t},
 		userAgent: userAgent,
 		smf:       smf,
 		closed:    make(chan struct{}),
