@@ -8,6 +8,8 @@ package amf
 import (
 	"net/http"
 
+	"github.com/nextmn/cp-lite/internal/config"
+
 	"github.com/nextmn/json-api/jsonapi"
 	"github.com/nextmn/json-api/jsonapi/n1n2"
 
@@ -55,14 +57,14 @@ func (amf *Amf) HandleHandoverNotify(m n1n2.HandoverNotify) {
 		return
 	}
 	for _, s := range m.Sessions {
-		indirectForwardingRequired, err := amf.smf.GetSessionIndirectForwardingRequired(m.UeCtrl, s.Addr, s.Dnn)
+		indirectForwardingRequired, err := amf.smf.GetSessionIndirectForwardingRequired(m.UeCtrl, s.Addr, config.SliceName(s.Dnn))
 		if err != nil {
 			// TODO: notify of failure
 			continue
 		}
 		// step 1: update DL rule (only update FAR) in the UPF-i if direct forwarding was used
 		if !indirectForwardingRequired {
-			if err := amf.smf.UpdateSessionDownlinkContext(ctx, m.UeCtrl, s.Addr, s.Dnn, m.SourceGnb); err != nil {
+			if err := amf.smf.UpdateSessionDownlinkContext(ctx, m.UeCtrl, s.Addr, config.SliceName(s.Dnn), m.SourceGnb); err != nil {
 				logrus.WithError(err).WithFields(logrus.Fields{
 					"ue":          m.UeCtrl.String(),
 					"pdu-session": s.Addr,
@@ -73,11 +75,11 @@ func (amf *Amf) HandleHandoverNotify(m n1n2.HandoverNotify) {
 		}
 		if sourceArea != targetArea {
 			// step 2. create new DL rules if sourceArea != targetArea
-			nextDlFteid, err := amf.smf.GetNextDownlinkFteid(m.UeCtrl, s.Addr, s.Dnn)
+			nextDlFteid, err := amf.smf.GetNextDownlinkFteid(m.UeCtrl, s.Addr, config.SliceName(s.Dnn))
 			if err != nil {
 				// TODO: notify of failure
 			}
-			_, err = amf.smf.CreateSessionDownlink(ctx, m.UeCtrl, s.Addr, s.Dnn, m.TargetGnb, *nextDlFteid)
+			_, err = amf.smf.CreateSessionDownlink(ctx, m.UeCtrl, s.Addr, config.SliceName(s.Dnn), m.TargetGnb, *nextDlFteid)
 			if err != nil {
 				// TODO: notify of failure
 				continue
@@ -89,7 +91,7 @@ func (amf *Amf) HandleHandoverNotify(m n1n2.HandoverNotify) {
 			// step 5. TODO: release forwarding DL rule in UPF-i if sourceArea != targetArea
 		}
 		if indirectForwardingRequired {
-			amf.smf.SetSessionIndirectForwardingRequired(m.UeCtrl, s.Addr, s.Dnn, false)
+			amf.smf.SetSessionIndirectForwardingRequired(m.UeCtrl, s.Addr, config.SliceName(s.Dnn), false)
 		}
 
 	}

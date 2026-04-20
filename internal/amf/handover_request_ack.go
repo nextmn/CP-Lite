@@ -11,6 +11,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/nextmn/cp-lite/internal/config"
+
 	"github.com/nextmn/json-api/jsonapi"
 	"github.com/nextmn/json-api/jsonapi/n1n2"
 
@@ -60,13 +62,13 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 	// send Handover Command to source gNB with "forwarding rule to targetGNB" (direct forwarding)
 	sessions := make([]n1n2.Session, len(m.Sessions))
 	for i, s := range m.Sessions {
-		indirectForwardingRequired, err := amf.smf.GetSessionIndirectForwardingRequired(m.UeCtrl, s.Addr, s.Dnn)
+		indirectForwardingRequired, err := amf.smf.GetSessionIndirectForwardingRequired(m.UeCtrl, s.Addr, config.SliceName(s.Dnn))
 		if err != nil {
 			// TODO: notify of failure
 			continue
 		}
 		if indirectForwardingRequired {
-			dl, err := amf.smf.GetSessionDownlinkFteid(m.UeCtrl, s.Addr, s.Dnn)
+			dl, err := amf.smf.GetSessionDownlinkFteid(m.UeCtrl, s.Addr, config.SliceName(s.Dnn))
 			if err != nil {
 				logrus.WithError(err).Error("could not get session downlink fteid")
 				// TODO: notify of failure
@@ -90,13 +92,13 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 				continue
 			}
 			// store DownlinkFteid to update the DL path upon reception of Handover Notfify
-			if err := amf.smf.StoreNextDownlinkFteid(m.UeCtrl, s.Addr, s.Dnn, s.DownlinkFteid); err != nil {
+			if err := amf.smf.StoreNextDownlinkFteid(m.UeCtrl, s.Addr, config.SliceName(s.Dnn), s.DownlinkFteid); err != nil {
 				logrus.WithError(err).Error("Could not store next downlink fteid")
 				// TODO: notify of failure
 				continue
 			}
 			// push new (temporary) DL rule on target UPF-i only (FAR: to target gNB) [DL-TI]
-			fwFteidTarget, err := amf.smf.CreateSessionDownlinkFWUpfI(ctx, m.UeCtrl, s.Addr, s.Dnn, upfiFwTarget, *s.DownlinkFteid)
+			fwFteidTarget, err := amf.smf.CreateSessionDownlinkFWUpfI(ctx, m.UeCtrl, s.Addr, config.SliceName(s.Dnn), upfiFwTarget, *s.DownlinkFteid)
 			if err != nil {
 				logrus.WithError(err).WithFields(logrus.Fields{
 					"ue-ctrl":           m.UeCtrl,
@@ -111,7 +113,7 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 			}
 			if sourceArea != targetArea {
 				// push (temporary) forwarding rule on source UPF-i only (FAR: to <DL-TI>))
-				fwFteidSource, err := amf.smf.CreateSessionDownlinkFWUpfI(ctx, m.UeCtrl, s.Addr, s.Dnn, upfiFwSource, *fwFteidTarget)
+				fwFteidSource, err := amf.smf.CreateSessionDownlinkFWUpfI(ctx, m.UeCtrl, s.Addr, config.SliceName(s.Dnn), upfiFwSource, *fwFteidTarget)
 				if err != nil {
 					logrus.WithError(err).Error("Could not push temporary DL rule on source UPF-i")
 					// TODO: notify failure
@@ -135,7 +137,7 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 			}
 		} else {
 			// direct forwarding: no modification of UPF-i: forward directly to target gNB
-			dl, err := amf.smf.GetSessionDownlinkFteid(m.UeCtrl, s.Addr, s.Dnn)
+			dl, err := amf.smf.GetSessionDownlinkFteid(m.UeCtrl, s.Addr, config.SliceName(s.Dnn))
 			if err != nil {
 				// TODO: notify of failure
 				continue
@@ -148,7 +150,7 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 				ForwardDownlinkFteid: s.DownlinkFteid,
 			}
 			// we store the DL FTEID: upon reception of Handover Notify, UPF-i will be updated to use it
-			if err := amf.smf.StoreNextDownlinkFteid(m.UeCtrl, s.Addr, s.Dnn, s.DownlinkFteid); err != nil {
+			if err := amf.smf.StoreNextDownlinkFteid(m.UeCtrl, s.Addr, config.SliceName(s.Dnn), s.DownlinkFteid); err != nil {
 				// TODO: notify of failure
 				continue
 			}

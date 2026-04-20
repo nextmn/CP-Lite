@@ -101,7 +101,7 @@ func (upf *Upf) nextListenFteid(listenInterface netip.Addr) <-chan fteidErr {
 	return ch
 }
 
-func (upf *Upf) CreateUplinkIntermediate(ctx context.Context, ueIp netip.Addr, dnn string, listenInterface netip.Addr, forwardFteid *jsonapi.Fteid) (*jsonapi.Fteid, error) {
+func (upf *Upf) CreateUplinkIntermediate(ctx context.Context, ueIp netip.Addr, dnn config.SliceName, listenInterface netip.Addr, forwardFteid *jsonapi.Fteid) (*jsonapi.Fteid, error) {
 	if ctx == nil {
 		panic("nil context")
 	}
@@ -121,7 +121,7 @@ func (upf *Upf) CreateUplinkIntermediate(ctx context.Context, ueIp netip.Addr, d
 	}
 }
 
-func (upf *Upf) CreateUplinkIntermediateWithFteid(ueIp netip.Addr, dnn string, listenFteid *jsonapi.Fteid, forwardFteid *jsonapi.Fteid) {
+func (upf *Upf) CreateUplinkIntermediateWithFteid(ueIp netip.Addr, dnn config.SliceName, listenFteid *jsonapi.Fteid, forwardFteid *jsonapi.Fteid) {
 	r := upf.Rules(ueIp)
 	r.Lock()
 	defer r.Unlock()
@@ -132,7 +132,7 @@ func (upf *Upf) CreateUplinkIntermediateWithFteid(ueIp netip.Addr, dnn string, l
 		ie.NewPDI(
 			ie.NewSourceInterface(ie.SrcInterfaceAccess),
 			ie.NewFTEID(FteidTypeIPv4, listenFteid.Teid, listenFteid.Addr.AsSlice(), nil, 0),
-			ie.NewNetworkInstance(dnn),
+			ie.NewNetworkInstance(string(dnn)),
 			ie.NewUEIPAddress(UEIpAddrTypeIPv4Source, ueIp.String(), "", 0, 0),
 		),
 		ie.NewOuterHeaderRemoval(OuterHeaderRemoveGtpuUdpIpv4, 0),
@@ -142,7 +142,7 @@ func (upf *Upf) CreateUplinkIntermediateWithFteid(ueIp netip.Addr, dnn string, l
 		ie.NewApplyAction(ApplyActionForw),
 		ie.NewForwardingParameters(
 			ie.NewDestinationInterface(ie.DstInterfaceCore),
-			ie.NewNetworkInstance(dnn),
+			ie.NewNetworkInstance(string(dnn)),
 			ie.NewOuterHeaderCreation(
 				OuterHeaderCreationGtpuUdpIpv4,
 				forwardFteid.Teid,
@@ -153,7 +153,7 @@ func (upf *Upf) CreateUplinkIntermediateWithFteid(ueIp netip.Addr, dnn string, l
 	))
 }
 
-func (upf *Upf) CreateUplinkAnchor(ctx context.Context, ueIp netip.Addr, dnn string, listenInterface netip.Addr) (*jsonapi.Fteid, error) {
+func (upf *Upf) CreateUplinkAnchor(ctx context.Context, ueIp netip.Addr, dnn config.SliceName, listenInterface netip.Addr) (*jsonapi.Fteid, error) {
 	if ctx == nil {
 		panic("nil context")
 	}
@@ -173,7 +173,7 @@ func (upf *Upf) CreateUplinkAnchor(ctx context.Context, ueIp netip.Addr, dnn str
 	}
 }
 
-func (upf *Upf) CreateUplinkAnchorWithFteid(ueIp netip.Addr, dnn string, listenFteid *jsonapi.Fteid) {
+func (upf *Upf) CreateUplinkAnchorWithFteid(ueIp netip.Addr, dnn config.SliceName, listenFteid *jsonapi.Fteid) {
 	r := upf.Rules(ueIp)
 	r.Lock()
 	defer r.Unlock()
@@ -184,7 +184,7 @@ func (upf *Upf) CreateUplinkAnchorWithFteid(ueIp netip.Addr, dnn string, listenF
 		ie.NewPDI(
 			ie.NewSourceInterface(ie.SrcInterfaceAccess),
 			ie.NewFTEID(FteidTypeIPv4, listenFteid.Teid, listenFteid.Addr.AsSlice(), nil, 0),
-			ie.NewNetworkInstance(dnn),
+			ie.NewNetworkInstance(string(dnn)),
 			ie.NewUEIPAddress(UEIpAddrTypeIPv4Source, ueIp.String(), "", 0, 0),
 		),
 		ie.NewOuterHeaderRemoval(OuterHeaderRemoveGtpuUdpIpv4, 0),
@@ -194,12 +194,12 @@ func (upf *Upf) CreateUplinkAnchorWithFteid(ueIp netip.Addr, dnn string, listenF
 		ie.NewApplyAction(ApplyActionForw),
 		ie.NewForwardingParameters(
 			ie.NewDestinationInterface(ie.DstInterfaceCore),
-			ie.NewNetworkInstance(dnn),
+			ie.NewNetworkInstance(string(dnn)),
 		),
 	))
 }
 
-func (upf *Upf) UpdateDownlinkAnchor(ueIp netip.Addr, dnn string, forwardFteid *jsonapi.Fteid) uint32 {
+func (upf *Upf) UpdateDownlinkAnchor(ueIp netip.Addr, dnn config.SliceName, forwardFteid *jsonapi.Fteid) uint32 {
 	r := upf.Rules(ueIp)
 	r.Lock()
 	defer r.Unlock()
@@ -208,7 +208,7 @@ func (upf *Upf) UpdateDownlinkAnchor(ueIp netip.Addr, dnn string, forwardFteid *
 
 	r.createpdrs = append(r.createpdrs, ie.NewCreatePDR(ie.NewPDRID(r.currentpdrid), ie.NewPrecedence(255),
 		ie.NewPDI(ie.NewSourceInterface(ie.SrcInterfaceCore),
-			ie.NewNetworkInstance(dnn),
+			ie.NewNetworkInstance(string(dnn)),
 			ie.NewUEIPAddress(UEIpAddrTypeIPv4Destination, ueIp.String(), "", 0, 0),
 		),
 		ie.NewFARID(r.currentfarid),
@@ -218,7 +218,7 @@ func (upf *Upf) UpdateDownlinkAnchor(ueIp netip.Addr, dnn string, forwardFteid *
 		ie.NewApplyAction(ApplyActionForw),
 		ie.NewForwardingParameters(
 			ie.NewDestinationInterface(ie.DstInterfaceAccess),
-			ie.NewNetworkInstance(dnn),
+			ie.NewNetworkInstance(string(dnn)),
 			ie.NewOuterHeaderCreation(
 				OuterHeaderCreationGtpuUdpIpv4,
 				forwardFteid.Teid,
@@ -230,7 +230,7 @@ func (upf *Upf) UpdateDownlinkAnchor(ueIp netip.Addr, dnn string, forwardFteid *
 	return r.currentfarid
 }
 
-func (upf *Upf) UpdateDownlinkIntermediateDirectForward(ueIp netip.Addr, dnn string, farid uint32, fteid *jsonapi.Fteid) {
+func (upf *Upf) UpdateDownlinkIntermediateDirectForward(ueIp netip.Addr, dnn config.SliceName, farid uint32, fteid *jsonapi.Fteid) {
 	r := upf.Rules(ueIp)
 	r.Lock()
 	defer r.Unlock()
@@ -238,7 +238,7 @@ func (upf *Upf) UpdateDownlinkIntermediateDirectForward(ueIp netip.Addr, dnn str
 		ie.NewApplyAction(ApplyActionForw),
 		ie.NewUpdateForwardingParameters(
 			ie.NewDestinationInterface(ie.DstInterfaceAccess),
-			ie.NewNetworkInstance(dnn),
+			ie.NewNetworkInstance(string(dnn)),
 			ie.NewOuterHeaderCreation(
 				OuterHeaderCreationGtpuUdpIpv4,
 				fteid.Teid,
@@ -249,7 +249,7 @@ func (upf *Upf) UpdateDownlinkIntermediateDirectForward(ueIp netip.Addr, dnn str
 	))
 }
 
-func (upf *Upf) UpdateDownlinkIntermediate(ctx context.Context, ueIp netip.Addr, dnn string, listenInterface netip.Addr, forwardFteid *jsonapi.Fteid) (*jsonapi.Fteid, uint32, error) {
+func (upf *Upf) UpdateDownlinkIntermediate(ctx context.Context, ueIp netip.Addr, dnn config.SliceName, listenInterface netip.Addr, forwardFteid *jsonapi.Fteid) (*jsonapi.Fteid, uint32, error) {
 	if ctx == nil {
 		panic("nil context")
 	}
@@ -268,7 +268,7 @@ func (upf *Upf) UpdateDownlinkIntermediate(ctx context.Context, ueIp netip.Addr,
 	}
 }
 
-func (upf *Upf) UpdateDownlinkIntermediateWithFteid(ueIp netip.Addr, dnn string, listenFteid *jsonapi.Fteid, forwardFteid *jsonapi.Fteid) uint32 {
+func (upf *Upf) UpdateDownlinkIntermediateWithFteid(ueIp netip.Addr, dnn config.SliceName, listenFteid *jsonapi.Fteid, forwardFteid *jsonapi.Fteid) uint32 {
 	r := upf.Rules(ueIp)
 	r.Lock()
 	defer r.Unlock()
@@ -279,7 +279,7 @@ func (upf *Upf) UpdateDownlinkIntermediateWithFteid(ueIp netip.Addr, dnn string,
 		ie.NewPDI(
 			ie.NewSourceInterface(ie.SrcInterfaceCore),
 			ie.NewFTEID(FteidTypeIPv4, listenFteid.Teid, listenFteid.Addr.AsSlice(), nil, 0),
-			ie.NewNetworkInstance(dnn),
+			ie.NewNetworkInstance(string(dnn)),
 			ie.NewUEIPAddress(UEIpAddrTypeIPv4Destination, ueIp.String(), "", 0, 0),
 		),
 		ie.NewOuterHeaderRemoval(OuterHeaderRemoveGtpuUdpIpv4, 0),
@@ -290,7 +290,7 @@ func (upf *Upf) UpdateDownlinkIntermediateWithFteid(ueIp netip.Addr, dnn string,
 		ie.NewApplyAction(ApplyActionForw),
 		ie.NewForwardingParameters(
 			ie.NewDestinationInterface(ie.DstInterfaceAccess),
-			ie.NewNetworkInstance(dnn),
+			ie.NewNetworkInstance(string(dnn)),
 			ie.NewOuterHeaderCreation(
 				OuterHeaderCreationGtpuUdpIpv4,
 				forwardFteid.Teid,
