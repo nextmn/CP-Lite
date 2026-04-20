@@ -76,7 +76,12 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 			}
 			upfiFwTarget, err := amf.smf.SessionFirstUpf(m.UeCtrl, s.Addr, s.Dnn, m.TargetgNB)
 			if err != nil {
-				logrus.WithError(err).Error("upfi-fw-target not found")
+				logrus.WithError(err).WithFields(logrus.Fields{
+					"ue":          m.UeCtrl,
+					"pdu-session": s.Addr,
+					"dnn":         s.Dnn,
+					"target-gnb":  m.TargetgNB,
+				}).Error("upfi-fw-target not found")
 				// TODO: notify failure
 				continue
 			}
