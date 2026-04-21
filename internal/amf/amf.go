@@ -34,9 +34,10 @@ type Amf struct {
 	smf       *smf.Smf
 	srv       *http.Server
 	closed    chan struct{}
+	emulation config.Emulation
 }
 
-func NewAmf(bindAddr netip.AddrPort, control jsonapi.ControlURI, areas map[config.AreaName]config.Area, userAgent string, smf *smf.Smf) *Amf {
+func NewAmf(bindAddr netip.AddrPort, control jsonapi.ControlURI, areas map[config.AreaName]config.Area, userAgent string, smf *smf.Smf, emulation config.Emulation) *Amf {
 	t := http.DefaultTransport.(*http.Transport).Clone()
 	t.DialContext = (&net.Dialer{
 		// Force using "rest" interface IP Address
@@ -53,6 +54,7 @@ func NewAmf(bindAddr netip.AddrPort, control jsonapi.ControlURI, areas map[confi
 		userAgent: userAgent,
 		smf:       smf,
 		closed:    make(chan struct{}),
+		emulation: emulation,
 	}
 	gin.SetMode(gin.ReleaseMode)
 	r := ginlogger.Default()

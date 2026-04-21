@@ -36,11 +36,12 @@ func ParseConf(file string) (*CPConfig, error) {
 }
 
 type CPConfig struct {
-	Control Control             `yaml:"control"`
-	Pfcp    netip.Addr          `yaml:"pfcp"`
-	Slices  map[SliceName]Slice `yaml:"slices"`
-	Areas   map[AreaName]Area   `yaml:"areas"`
-	Logger  *Logger             `yaml:"logger,omitempty"`
+	Control   Control             `yaml:"control"`
+	Pfcp      netip.Addr          `yaml:"pfcp"`
+	Slices    map[SliceName]Slice `yaml:"slices"`
+	Areas     map[AreaName]Area   `yaml:"areas"`
+	Emulation Emulation           `yaml:"emulation"`
+	Logger    *Logger             `yaml:"logger,omitempty"`
 }
 
 type Control struct {
@@ -72,4 +73,8 @@ type Area struct {
 type GTPInterface struct {
 	NodeID        netip.Addr `yaml:"node-id"`
 	InterfaceAddr netip.Addr `yaml:"interface-addr"`
+}
+
+type Emulation struct {
+	HandoverNotify time.Duration `yaml:"handover-notify"`
 }

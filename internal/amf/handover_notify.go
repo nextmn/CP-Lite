@@ -6,6 +6,7 @@
 package amf
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/nextmn/cp-lite/internal/config"
@@ -56,6 +57,22 @@ func (amf *Amf) HandleHandoverNotify(m n1n2.HandoverNotify) {
 		}).Error("Unknown Area for target gNB")
 		return
 	}
+
+	// We miss a lot of NFs because this is a simplified 5GC.
+	// A real 5GC would take more time to perform this operation because of calls to NFs,
+	// including notably, requests to NRF, retrieval of the context, security checks, and sending a PDUSessionUpdateSMContext Request to the SMF.
+	// We can increase artificially the processing time to have a result closer of a real setup.
+	ctxProcessing, cancel := context.WithTimeout(ctx, amf.emulation.HandoverNotify)
+	defer cancel()
+	select {
+	case <-ctxProcessing.Done():
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+	}
+
 	for _, s := range m.Sessions {
 		indirectForwardingRequired, err := amf.smf.GetSessionIndirectForwardingRequired(m.UeCtrl, s.Addr, config.SliceName(s.Dnn))
 		if err != nil {

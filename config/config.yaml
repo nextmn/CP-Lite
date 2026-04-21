@@ -17,8 +17,8 @@ slices:
 
 areas: # RAN areas
   area1:
-    one-way-delay: "9ms" # owd to the gnbs of area1 (for control link)
-    gnbs: # list of gnbs in the area
+    one-way-delay: "9ms" # OWD to the gnbs of area1 (for control link)
+    gnbs: # list of gNBs in the area
       - "http://192.0.2.2:8080" # gnb1
       - "http://192.0.2.4.8080" # gnb2
     paths: # define one path per slice
@@ -26,13 +26,19 @@ areas: # RAN areas
         - node-id: "203.0.113.2" # srv6-ctrl
           interface-addr: "198.51.100.11" # srgw1
   area2:
-    one-way-delay: "9ms" # owd to the gnbs of area2 (for control link)
+    one-way-delay: "9ms" # OWD to the gNBs of area2 (for control link)
     gnbs:
-      - "http://192.0.2.5:8080" # gnb3
+      - "http://192.0.2.5:8080" # gNB3
     paths:
       nextmn-lite:
         - node-id: "203.0.113.2" # srv6-ctrl
           interface-addr: "198.51.100.12" # srgw2
+
+# We miss a lot of NFs because this is a simplified 5GC.
+# A real 5GC would take more time to perform most operations because of calls to NFs.
+# We can increase artificially the processing time to have a result closer of a real setup.
+emulation:
+  handover-notify: "200ms"
 
 logger:
   level: "trace"
