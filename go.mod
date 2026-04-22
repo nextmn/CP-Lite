@@ -8,6 +8,7 @@ require (
 	github.com/nextmn/go-pfcp-networking v0.0.42
 	github.com/nextmn/json-api v0.1.1
 	github.com/nextmn/logrus-formatter v0.2.1
+	github.com/nextmn/rfc9433 v0.0.4
 	github.com/sirupsen/logrus v1.9.4
 	github.com/urfave/cli/v3 v3.8.0
 	github.com/wmnsk/go-pfcp v0.0.24
@@ -27,6 +28,7 @@ require (
 	github.com/go-playground/validator/v10 v10.30.2 // indirect
 	github.com/goccy/go-json v0.10.6 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
+	github.com/gofrs/uuid/v5 v5.4.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect

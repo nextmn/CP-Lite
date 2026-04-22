@@ -77,4 +77,27 @@ type GTPInterface struct {
 
 type Emulation struct {
 	HandoverNotify time.Duration `yaml:"handover-notify"`
+	N4SR4MEC       N4SR4MEC      `yaml:"n4-sr4mec"`
+}
+
+type N4SR4MEC struct {
+	Control Control               `yaml:"control"`
+	Enabled bool                  `yaml:"enabled"`
+	Slices  map[SliceName]SliceSR `yaml:"slices"`
+}
+
+type SliceSR struct {
+	MigrationAPosteriori bool          `yaml:"migration-a-posteriori"`
+	MigrationDelay       time.Duration `yaml:"migration-delay"`
+	Service              netip.Addr    `yaml:"service"`
+	PsEstablishment      SRConfig      `yaml:"ps-establishment"`
+	HandoverMigration    SRConfig      `yaml:"handover-migration"`
+}
+
+type SRConfig struct {
+	Srgw             jsonapi.ControlURI `yaml:"srgw"`
+	SrgwGtp4         netip.Addr         `yaml:"srgw-gtp4"`
+	Anchor           jsonapi.ControlURI `yaml:"anchor"`
+	UplinkSegments   []string           `yaml:"uplink-segments"`
+	DownlinkSegments []string           `yaml:"downlink-segments"`
 }

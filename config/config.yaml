@@ -39,6 +39,52 @@ areas: # RAN areas
 # We can increase artificially the processing time to have a result closer of a real setup.
 emulation:
   handover-notify: "200ms"
+  n4-sr4mec:
+    enabled: true
+    control:
+      uri: "http://192.0.3.1:8080"
+      bind-addr: "192.0.3.1:8080"
+    slices:
+      slice0:
+        migration-a-posteriori: true # preserve instance then do a migration
+        migration-delay: "3s"
+        service: "10.4.0.1/32"
+        ps-establishment:
+          srgw: "http://192.0.3.2:8080"
+          srgw-gtp4: "198.51.100.11"
+          anchor: "http://192.0.3.3:8080"
+          uplink-segments:
+            - "fc00:3:1::"
+          downlink-segments:
+            - "fc00:1:1::/48"
+        handover-migration:
+          srgw: "http://192.0.3.4:8080"
+          srgw-gtp4: "198.51.100.12"
+          anchor: "http://192.0.3.5:8080"
+          uplink-segments:
+            - "fc00:4:1::"
+          downlink-segments:
+            - "fc00:2:1::/48"
+      slice1:
+        migration-a-posteriori: false # immediate migration
+        service: "10.4.0.1"
+        ps-establishment:
+          srgw: "http://192.0.3.2:8080"
+          srgw-gtp4: "198.51.100.11"
+          anchor: "http://192.0.3.3:8080"
+          uplink-segments:
+            - "fc00:3:1::"
+          downlink-segments:
+            - "fc00:1:1::/48"
+        handover-migration:
+          srgw: "http://192.0.3.4:8080"
+          srgw-gtp4: "198.51.100.12"
+          anchor: "http://192.0.3.5:8080"
+          uplink-segments:
+            - "fc00:4:1::"
+          downlink-segments:
+            - "fc00:2:1::/48"
+
 
 logger:
   level: "trace"
