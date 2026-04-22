@@ -12,6 +12,7 @@ import (
 	"github.com/nextmn/cp-lite/internal/amf"
 	"github.com/nextmn/cp-lite/internal/config"
 	"github.com/nextmn/cp-lite/internal/smf"
+	"github.com/nextmn/cp-lite/internal/sr4mec"
 )
 
 type Setup struct {
@@ -22,9 +23,13 @@ type Setup struct {
 
 func NewSetup(config *config.CPConfig) *Setup {
 	smf := smf.NewSmf(config.Pfcp, config.Slices, config.Areas)
+	var ctrl *sr4mec.Ctrl
+	if config.Emulation.N4SR4MEC.Enabled {
+		ctrl = sr4mec.NewCtrl(config.Emulation.N4SR4MEC.Control.BindAddr, "go-github-nextmn-cp-lite", config.Emulation.N4SR4MEC.Slices)
+	}
 	return &Setup{
 		config: config,
-		amf:    amf.NewAmf(config.Control.BindAddr, config.Control.Uri, config.Areas, "go-github-nextmn-cp-lite", smf, config.Emulation),
+		amf:    amf.NewAmf(config.Control.BindAddr, config.Control.Uri, config.Areas, "go-github-nextmn-cp-lite", smf, ctrl, config.Emulation),
 		smf:    smf,
 	}
 }
