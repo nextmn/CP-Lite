@@ -79,9 +79,17 @@ func (amf *Amf) HandleHandoverNotify(m n1n2.HandoverNotify) {
 			// TODO: notify of failure
 			continue
 		}
+
+		if (sourceArea != targetArea) && !indirectForwardingRequired {
+			logrus.Error("Handover Notify: using direct forwarding but source and target areas are different. This is wrong.")
+		}
+		if (sourceArea == targetArea) && indirectForwardingRequired {
+			logrus.Error("Handover Notify: using indirect forwarding but source and target areas are same. This is currently unsupported.")
+		}
+
 		// step 1: update DL rule (only update FAR) in the UPF-i if direct forwarding was used
 		if !indirectForwardingRequired {
-			if err := amf.smf.UpdateSessionDownlinkContext(ctx, m.UeCtrl, s.Addr, config.SliceName(s.Dnn), m.SourceGnb); err != nil {
+			if err := amf.smf.UpdateSessionDownlink(ctx, m.UeCtrl, s.Addr, config.SliceName(s.Dnn), m.SourceGnb); err != nil {
 				logrus.WithError(err).WithFields(logrus.Fields{
 					"ue":          m.UeCtrl.String(),
 					"pdu-session": s.Addr,
@@ -96,14 +104,14 @@ func (amf *Amf) HandleHandoverNotify(m n1n2.HandoverNotify) {
 			if err != nil {
 				// TODO: notify of failure
 			}
-			_, err = amf.smf.CreateSessionDownlink(ctx, m.UeCtrl, s.Addr, config.SliceName(s.Dnn), m.TargetGnb, *nextDlFteid)
+			_, err = amf.smf.CreateSessionDownlink(ctx, m.UeCtrl, s.Addr, config.SliceName(s.Dnn), m.TargetGnb, *nextDlFteid, 254)
 			if err != nil {
 				// TODO: notify of failure
 				continue
 			}
 
+			// NOTE: until those steps are implemented, attempting to do more than 1 handover is risky.
 			// step 3. TODO: release old DL rules if sourceArea != targetArea
-			// NOTE: until this step is implemented, handover across areas will **NOT** work when sourceUPFA == targetUPFA
 			// step 4. TODO: release rules for the old UL path (from source upf-i to source upf-a) if target area != source area:
 			// step 5. TODO: release forwarding DL rule in UPF-i if sourceArea != targetArea
 		}
