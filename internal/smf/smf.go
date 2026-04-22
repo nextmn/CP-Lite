@@ -87,7 +87,8 @@ func (smf *Smf) Start(ctx context.Context) error {
 	return nil
 }
 
-func (smf *Smf) CreateSessionDownlink(ctx context.Context, ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn config.SliceName, gnbCtrl jsonapi.ControlURI, gnbFteid jsonapi.Fteid) (*PduSessionN3, error) {
+func (smf *Smf) CreateSessionDownlink(ctx context.Context, ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn config.SliceName, gnbCtrl jsonapi.ControlURI, gnbFteid jsonapi.Fteid, precedence uint32) (*PduSessionN3, error) {
+	//XXX: once we are able to delete old rules, we would no longer need a custom precedence
 	if ctx == nil {
 		panic("nil context")
 	}
@@ -139,9 +140,9 @@ func (smf *Smf) CreateSessionDownlink(ctx context.Context, ueCtrl jsonapi.Contro
 
 		var far_id uint32
 		if i == len(path)-1 {
-			far_id = upf.UpdateDownlinkAnchor(session.UeIpAddr, dnn, last_fteid)
+			far_id = upf.UpdateDownlinkAnchor(session.UeIpAddr, dnn, last_fteid, precedence)
 		} else {
-			last_fteid, far_id, err = upf.UpdateDownlinkIntermediate(ctx, session.UeIpAddr, dnn, gtpInterface.InterfaceAddr, last_fteid)
+			last_fteid, far_id, err = upf.UpdateDownlinkIntermediate(ctx, session.UeIpAddr, dnn, gtpInterface.InterfaceAddr, last_fteid, precedence)
 			if err != nil {
 				return nil, err
 			}
@@ -178,7 +179,7 @@ func (smf *Smf) CreateSessionDownlinkFWUpfI(ctx context.Context, ueCtrl jsonapi.
 	}
 	upf := upf_any.(*Upf)
 
-	fteid, _, err := upf.UpdateDownlinkIntermediate(ctx, ueIp, dnn, fwUpfi.InterfaceAddr, &DlFteid)
+	fteid, _, err := upf.UpdateDownlinkIntermediate(ctx, ueIp, dnn, fwUpfi.InterfaceAddr, &DlFteid, 255)
 	if err != nil {
 		return nil, err
 	}
@@ -378,12 +379,8 @@ func (smf *Smf) GetNextDownlinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Add
 	return slice.(*Slice).sessions.GetNextDownlinkFteid(ueCtrl, ueAddr)
 }
 
-func (smf *Smf) UpdateSessionDownlink(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn config.SliceName, oldGnbCtrl jsonapi.ControlURI) error {
-	return smf.UpdateSessionDownlinkContext(smf.Context(), ueCtrl, ueAddr, dnn, oldGnbCtrl)
-}
-
 // Updates Session to NextDownlinkFteid
-func (smf *Smf) UpdateSessionDownlinkContext(ctx context.Context, ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn config.SliceName, oldGnbCtrl jsonapi.ControlURI) error {
+func (smf *Smf) UpdateSessionDownlink(ctx context.Context, ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn config.SliceName, oldGnbCtrl jsonapi.ControlURI) error {
 	s, ok := smf.slices.Load(dnn)
 	if !ok {
 		return ErrDnnNotFound

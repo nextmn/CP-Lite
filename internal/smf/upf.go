@@ -199,14 +199,15 @@ func (upf *Upf) CreateUplinkAnchorWithFteid(ueIp netip.Addr, dnn config.SliceNam
 	))
 }
 
-func (upf *Upf) UpdateDownlinkAnchor(ueIp netip.Addr, dnn config.SliceName, forwardFteid *jsonapi.Fteid) uint32 {
+func (upf *Upf) UpdateDownlinkAnchor(ueIp netip.Addr, dnn config.SliceName, forwardFteid *jsonapi.Fteid, precedence uint32) uint32 {
+	//XXX: once we are able to delete old rules, we would no longer need a custom precedence
 	r := upf.Rules(ueIp)
 	r.Lock()
 	defer r.Unlock()
 	r.currentpdrid += 1
 	r.currentfarid += 1
 
-	r.createpdrs = append(r.createpdrs, ie.NewCreatePDR(ie.NewPDRID(r.currentpdrid), ie.NewPrecedence(255),
+	r.createpdrs = append(r.createpdrs, ie.NewCreatePDR(ie.NewPDRID(r.currentpdrid), ie.NewPrecedence(precedence),
 		ie.NewPDI(ie.NewSourceInterface(ie.SrcInterfaceCore),
 			ie.NewNetworkInstance(string(dnn)),
 			ie.NewUEIPAddress(UEIpAddrTypeIPv4Destination, ueIp.String(), "", 0, 0),
@@ -249,7 +250,8 @@ func (upf *Upf) UpdateDownlinkIntermediateDirectForward(ueIp netip.Addr, dnn con
 	))
 }
 
-func (upf *Upf) UpdateDownlinkIntermediate(ctx context.Context, ueIp netip.Addr, dnn config.SliceName, listenInterface netip.Addr, forwardFteid *jsonapi.Fteid) (*jsonapi.Fteid, uint32, error) {
+func (upf *Upf) UpdateDownlinkIntermediate(ctx context.Context, ueIp netip.Addr, dnn config.SliceName, listenInterface netip.Addr, forwardFteid *jsonapi.Fteid, precedence uint32) (*jsonapi.Fteid, uint32, error) {
+	//XXX: once we are able to delete old rules, we would no longer need a custom precedence
 	if ctx == nil {
 		panic("nil context")
 	}
@@ -264,18 +266,19 @@ func (upf *Upf) UpdateDownlinkIntermediate(ctx context.Context, ueIp netip.Addr,
 			return nil, 0, res.Err
 		}
 		listenFteid := res.Fteid
-		return listenFteid, upf.UpdateDownlinkIntermediateWithFteid(ueIp, dnn, listenFteid, forwardFteid), nil
+		return listenFteid, upf.UpdateDownlinkIntermediateWithFteid(ueIp, dnn, listenFteid, forwardFteid, precedence), nil
 	}
 }
 
-func (upf *Upf) UpdateDownlinkIntermediateWithFteid(ueIp netip.Addr, dnn config.SliceName, listenFteid *jsonapi.Fteid, forwardFteid *jsonapi.Fteid) uint32 {
+func (upf *Upf) UpdateDownlinkIntermediateWithFteid(ueIp netip.Addr, dnn config.SliceName, listenFteid *jsonapi.Fteid, forwardFteid *jsonapi.Fteid, precedence uint32) uint32 {
+	//XXX: once we are able to delete old rules, we would no longer need a custom precedence
 	r := upf.Rules(ueIp)
 	r.Lock()
 	defer r.Unlock()
 	r.currentpdrid += 1
 	r.currentfarid += 1
 
-	r.createpdrs = append(r.createpdrs, ie.NewCreatePDR(ie.NewPDRID(r.currentpdrid), ie.NewPrecedence(255),
+	r.createpdrs = append(r.createpdrs, ie.NewCreatePDR(ie.NewPDRID(r.currentpdrid), ie.NewPrecedence(precedence),
 		ie.NewPDI(
 			ie.NewSourceInterface(ie.SrcInterfaceCore),
 			ie.NewFTEID(FteidTypeIPv4, listenFteid.Teid, listenFteid.Addr.AsSlice(), nil, 0),
