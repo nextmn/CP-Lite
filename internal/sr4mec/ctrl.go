@@ -113,7 +113,7 @@ func (c *Ctrl) CreateSessionUplink(ctx context.Context, ueCtrl jsonapi.ControlUR
 	return nil, fmt.Errorf("missing Location in response")
 }
 
-func (c *Ctrl) CreateSessionDownlink(ctx context.Context, ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn config.SliceName, gnbCtrl jsonapi.ControlURI, gnbFteid jsonapi.Fteid, precedence uint32) (*PduSessionN3, error) {
+func (c *Ctrl) CreateSessionDownlink(ctx context.Context, ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn config.SliceName, gnbCtrl jsonapi.ControlURI, gnbFteid jsonapi.Fteid) (*PduSessionN3, error) {
 	conf, ok := c.slicesSR[dnn]
 	if !ok {
 		return nil, fmt.Errorf("No SR config for slice %s", dnn)
@@ -153,7 +153,8 @@ func (c *Ctrl) CreateSessionDownlink(ctx context.Context, ueCtrl jsonapi.Control
 			},
 		},
 		Action: n4tosrv6.Action{
-			SRH: *srh,
+			SourceGtp4: &conf.PsEstablishment.SrgwGtp4,
+			SRH:        *srh,
 		},
 	}
 	data, err := json.Marshal(rule)

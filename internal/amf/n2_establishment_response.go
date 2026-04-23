@@ -24,7 +24,6 @@ func (amf *Amf) N2EstablishmentResponse(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, jsonapi.MessageWithError{Message: "could not deserialize", Error: err})
 		return
 	}
-	go amf.HandleN2EstablishmentResponse(ps)
 	go func() {
 		if amf.srCtrl == nil {
 			amf.HandleN2EstablishmentResponse(ps)
@@ -37,7 +36,7 @@ func (amf *Amf) N2EstablishmentResponse(c *gin.Context) {
 
 func (amf *Amf) HandleN2EstablishmentResponseSR4MEC(ps n1n2.N2PduSessionRespMsg) {
 	ctx := amf.Context()
-	pduSession, err := amf.srCtrl.CreateSessionDownlink(ctx, ps.UeInfo.Header.Ue, ps.UeInfo.Addr, config.SliceName(ps.UeInfo.Header.Dnn), ps.UeInfo.Header.Gnb, ps.DownlinkFteid, 255)
+	pduSession, err := amf.srCtrl.CreateSessionDownlink(ctx, ps.UeInfo.Header.Ue, ps.UeInfo.Addr, config.SliceName(ps.UeInfo.Header.Dnn), ps.UeInfo.Header.Gnb, ps.DownlinkFteid)
 	if err != nil {
 		logrus.WithError(err).WithFields(logrus.Fields{
 			"ue-ip-addr": ps.UeInfo.Addr,
