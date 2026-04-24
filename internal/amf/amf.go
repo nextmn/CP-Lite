@@ -13,7 +13,9 @@ import (
 	"time"
 
 	"github.com/nextmn/cp-lite/internal/common"
+	"github.com/nextmn/cp-lite/internal/config"
 	"github.com/nextmn/cp-lite/internal/smf"
+	"github.com/nextmn/cp-lite/internal/sr4mec"
 
 	"github.com/nextmn/json-api/healthcheck"
 	"github.com/nextmn/json-api/jsonapi"
@@ -26,21 +28,36 @@ import (
 type Amf struct {
 	common.WithContext
 
+	n2        N2
 	control   jsonapi.ControlURI
 	client    http.Client
 	userAgent string
 	smf       *smf.Smf
+	srCtrl    *sr4mec.Ctrl
 	srv       *http.Server
 	closed    chan struct{}
+	emulation config.Emulation
 }
 
-func NewAmf(bindAddr netip.AddrPort, control jsonapi.ControlURI, userAgent string, smf *smf.Smf) *Amf {
+func NewAmf(bindAddr netip.AddrPort, control jsonapi.ControlURI, areas map[config.AreaName]config.Area, userAgent string, smf *smf.Smf, srctrl *sr4mec.Ctrl, emulation config.Emulation) *Amf {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.DialContext = (&net.Dialer{
+		// Force using "rest" interface IP Address
+		LocalAddr: &net.TCPAddr{IP: bindAddr.Addr().AsSlice()},
+		// Same parameters as http.DefaultTransport's Dialer
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}).DialContext
+
 	amf := Amf{
+		n2:        NewN2(areas),
 		control:   control,
-		client:    http.Client{},
+		client:    http.Client{Transport: t},
 		userAgent: userAgent,
 		smf:       smf,
+		srCtrl:    srctrl,
 		closed:    make(chan struct{}),
+		emulation: emulation,
 	}
 	gin.SetMode(gin.ReleaseMode)
 	r := ginlogger.Default()
@@ -63,9 +80,7 @@ func NewAmf(bindAddr netip.AddrPort, control jsonapi.ControlURI, userAgent strin
 }
 
 func (amf *Amf) Start(ctx context.Context) error {
-	if err := amf.InitContext(ctx); err != nil {
-		return err
-	}
+	amf.InitContext(ctx)
 	l, err := net.Listen("tcp", amf.srv.Addr)
 	if err != nil {
 		return err

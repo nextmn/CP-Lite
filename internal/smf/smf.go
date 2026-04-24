@@ -31,7 +31,7 @@ type Smf struct {
 	closed  chan struct{}
 }
 
-func NewSmf(addr netip.Addr, slices map[string]config.Slice, areas map[string]config.Area) *Smf {
+func NewSmf(addr netip.Addr, slices map[config.SliceName]config.Slice, areas map[config.AreaName]config.Area) *Smf {
 	s := NewSlicesMap(slices, areas)
 	upfs := NewUpfsMap(slices)
 	return &Smf{
@@ -47,9 +47,7 @@ func (smf *Smf) Start(ctx context.Context) error {
 	if smf.started {
 		return ErrSmfAlreadyStarted
 	}
-	if err := smf.InitContext(ctx); err != nil {
-		return err
-	}
+	smf.InitContext(ctx)
 	logrus.Info("Starting PFCP Server")
 	go func() {
 		defer func() {
@@ -78,10 +76,7 @@ func (smf *Smf) Start(ctx context.Context) error {
 			failure = err
 			return false
 		}
-		if err := upf.Associate(ctx, association); err != nil {
-			failure = err
-			return false
-		}
+		upf.Associate(ctx, association)
 		return true
 	})
 	if failure != nil {
@@ -92,16 +87,13 @@ func (smf *Smf) Start(ctx context.Context) error {
 	return nil
 }
 
-func (smf *Smf) CreateSessionDownlink(ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn string, gnbCtrl jsonapi.ControlURI, gnbFteid jsonapi.Fteid) (*PduSessionN3, error) {
-	return smf.CreateSessionDownlinkContext(smf.Context(), ueCtrl, ueIp, dnn, gnbCtrl, gnbFteid)
-}
-
-func (smf *Smf) CreateSessionDownlinkContext(ctx context.Context, ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn string, gnbCtrl jsonapi.ControlURI, gnbFteid jsonapi.Fteid) (*PduSessionN3, error) {
+func (smf *Smf) CreateSessionDownlink(ctx context.Context, ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn config.SliceName, gnbCtrl jsonapi.ControlURI, gnbFteid jsonapi.Fteid, precedence uint32) (*PduSessionN3, error) {
+	//XXX: once we are able to delete old rules, we would no longer need a custom precedence
+	if ctx == nil {
+		panic("nil context")
+	}
 	if !smf.started {
 		return nil, ErrSmfNotStarted
-	}
-	if ctx == nil {
-		return nil, ErrNilCtx
 	}
 	smfCtx := smf.Context()
 	select {
@@ -148,9 +140,9 @@ func (smf *Smf) CreateSessionDownlinkContext(ctx context.Context, ueCtrl jsonapi
 
 		var far_id uint32
 		if i == len(path)-1 {
-			far_id = upf.UpdateDownlinkAnchor(session.UeIpAddr, dnn, last_fteid)
+			far_id = upf.UpdateDownlinkAnchor(session.UeIpAddr, dnn, last_fteid, precedence)
 		} else {
-			last_fteid, far_id, err = upf.UpdateDownlinkIntermediateContext(ctx, session.UeIpAddr, dnn, gtpInterface.InterfaceAddr, last_fteid)
+			last_fteid, far_id, err = upf.UpdateDownlinkIntermediate(ctx, session.UeIpAddr, dnn, gtpInterface.InterfaceAddr, last_fteid, precedence)
 			if err != nil {
 				return nil, err
 			}
@@ -163,12 +155,12 @@ func (smf *Smf) CreateSessionDownlinkContext(ctx context.Context, ueCtrl jsonapi
 	return session, nil
 }
 
-func (smf *Smf) CreateSessionDownlinkFWUpfIContext(ctx context.Context, ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn string, fwUpfi *config.GTPInterface, DlFteid jsonapi.Fteid) (*jsonapi.Fteid, error) {
+func (smf *Smf) CreateSessionDownlinkFWUpfI(ctx context.Context, ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn config.SliceName, fwUpfi *config.GTPInterface, DlFteid jsonapi.Fteid) (*jsonapi.Fteid, error) {
+	if ctx == nil {
+		panic("nil context")
+	}
 	if !smf.started {
 		return nil, ErrSmfNotStarted
-	}
-	if ctx == nil {
-		return nil, ErrNilCtx
 	}
 	smfCtx := smf.Context()
 	select {
@@ -187,7 +179,7 @@ func (smf *Smf) CreateSessionDownlinkFWUpfIContext(ctx context.Context, ueCtrl j
 	}
 	upf := upf_any.(*Upf)
 
-	fteid, _, err := upf.UpdateDownlinkIntermediateContext(ctx, ueIp, dnn, fwUpfi.InterfaceAddr, &DlFteid)
+	fteid, _, err := upf.UpdateDownlinkIntermediate(ctx, ueIp, dnn, fwUpfi.InterfaceAddr, &DlFteid, 255)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +189,7 @@ func (smf *Smf) CreateSessionDownlinkFWUpfIContext(ctx context.Context, ueCtrl j
 	return fteid, nil
 }
 
-func (smf *Smf) SessionFirstUpf(ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn string, gnbCtrl jsonapi.ControlURI) (*config.GTPInterface, error) {
+func (smf *Smf) SessionFirstUpf(ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn config.SliceName, gnbCtrl jsonapi.ControlURI) (*config.GTPInterface, error) {
 	s, ok := smf.slices.Load(dnn)
 	if !ok {
 		return nil, ErrDnnNotFound
@@ -224,7 +216,7 @@ func (smf *Smf) SessionFirstUpf(ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn 
 
 }
 
-func (smf *Smf) GetNextUeIpAddr(dnn string) (netip.Addr, error) {
+func (smf *Smf) GetNextUeIpAddr(dnn config.SliceName) (netip.Addr, error) {
 	s, ok := smf.slices.Load(dnn)
 	if !ok {
 		return netip.Addr{}, ErrDnnNotFound
@@ -233,16 +225,12 @@ func (smf *Smf) GetNextUeIpAddr(dnn string) (netip.Addr, error) {
 	return slice.Pool.Next()
 }
 
-func (smf *Smf) CreateSessionUplink(ueCtrl jsonapi.ControlURI, ueIpAddr netip.Addr, gnbCtrl jsonapi.ControlURI, dnn string) (*PduSessionN3, error) {
-	return smf.CreateSessionUplinkContext(smf.Context(), ueCtrl, ueIpAddr, gnbCtrl, dnn)
-}
-
-func (smf *Smf) CreateSessionUplinkContext(ctx context.Context, ueCtrl jsonapi.ControlURI, ueIpAddr netip.Addr, gnbCtrl jsonapi.ControlURI, dnn string) (*PduSessionN3, error) {
+func (smf *Smf) CreateSessionUplink(ctx context.Context, ueCtrl jsonapi.ControlURI, ueIpAddr netip.Addr, gnbCtrl jsonapi.ControlURI, dnn config.SliceName) (*PduSessionN3, error) {
+	if ctx == nil {
+		panic("nil context")
+	}
 	if !smf.started {
 		return nil, ErrSmfNotStarted
-	}
-	if ctx == nil {
-		return nil, ErrNilCtx
 	}
 	smfCtx := smf.Context()
 	select {
@@ -282,7 +270,7 @@ func (smf *Smf) CreateSessionUplinkContext(ctx context.Context, ueCtrl jsonapi.C
 		return nil, ErrUpfNotFound
 	}
 	upfa := upfa_any.(*Upf)
-	last_fteid, err := upfa.CreateUplinkAnchorContext(ctx, ueIpAddr, dnn, upfaInterface.InterfaceAddr)
+	last_fteid, err := upfa.CreateUplinkAnchor(ctx, ueIpAddr, dnn, upfaInterface.InterfaceAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +286,7 @@ func (smf *Smf) CreateSessionUplinkContext(ctx context.Context, ueCtrl jsonapi.C
 			return nil, ErrUpfNotFound
 		}
 		upf := upf_any.(*Upf)
-		last_fteid, err = upf.CreateUplinkIntermediateContext(ctx, ueIpAddr, dnn, gtpInterface.InterfaceAddr, last_fteid)
+		last_fteid, err = upf.CreateUplinkIntermediate(ctx, ueIpAddr, dnn, gtpInterface.InterfaceAddr, last_fteid)
 		if err != nil {
 			logrus.WithError(err).Error("Could not create uplink intermediate")
 			return nil, err
@@ -335,7 +323,7 @@ func (smf *Smf) WaitShutdown(ctx context.Context) error {
 	}
 }
 
-func (smf *Smf) GetSessionUplinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn string) (*jsonapi.Fteid, error) {
+func (smf *Smf) GetSessionUplinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn config.SliceName) (*jsonapi.Fteid, error) {
 	slice, ok := smf.slices.Load(dnn)
 	if !ok {
 		return nil, ErrDnnNotFound
@@ -347,7 +335,7 @@ func (smf *Smf) GetSessionUplinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Ad
 	return session.UplinkFteid, nil
 }
 
-func (smf *Smf) SetSessionIndirectForwardingRequired(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn string, value bool) error {
+func (smf *Smf) SetSessionIndirectForwardingRequired(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn config.SliceName, value bool) error {
 	slice, ok := smf.slices.Load(dnn)
 	if !ok {
 		return ErrDnnNotFound
@@ -355,7 +343,7 @@ func (smf *Smf) SetSessionIndirectForwardingRequired(ueCtrl jsonapi.ControlURI, 
 	return slice.(*Slice).sessions.SetIndirectForwardingRequired(ueCtrl, ueAddr, value)
 }
 
-func (smf *Smf) GetSessionIndirectForwardingRequired(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn string) (bool, error) {
+func (smf *Smf) GetSessionIndirectForwardingRequired(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn config.SliceName) (bool, error) {
 	slice, ok := smf.slices.Load(dnn)
 	if !ok {
 		return false, ErrDnnNotFound
@@ -363,7 +351,7 @@ func (smf *Smf) GetSessionIndirectForwardingRequired(ueCtrl jsonapi.ControlURI, 
 	return slice.(*Slice).sessions.GetIndirectForwardingRequired(ueCtrl, ueAddr)
 }
 
-func (smf *Smf) GetSessionDownlinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn string) (*jsonapi.Fteid, error) {
+func (smf *Smf) GetSessionDownlinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn config.SliceName) (*jsonapi.Fteid, error) {
 	slice, ok := smf.slices.Load(dnn)
 	if !ok {
 		return nil, ErrDnnNotFound
@@ -375,7 +363,7 @@ func (smf *Smf) GetSessionDownlinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.
 	return session.DownlinkFteid, nil
 }
 
-func (smf *Smf) StoreNextDownlinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn string, fteid *jsonapi.Fteid) error {
+func (smf *Smf) StoreNextDownlinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn config.SliceName, fteid *jsonapi.Fteid) error {
 	slice, ok := smf.slices.Load(dnn)
 	if !ok {
 		return ErrDnnNotFound
@@ -383,7 +371,7 @@ func (smf *Smf) StoreNextDownlinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.A
 	return slice.(*Slice).sessions.SetNextDownlinkFteid(ueCtrl, ueAddr, fteid)
 }
 
-func (smf *Smf) GetNextDownlinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn string) (*jsonapi.Fteid, error) {
+func (smf *Smf) GetNextDownlinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn config.SliceName) (*jsonapi.Fteid, error) {
 	slice, ok := smf.slices.Load(dnn)
 	if !ok {
 		return nil, ErrDnnNotFound
@@ -391,12 +379,8 @@ func (smf *Smf) GetNextDownlinkFteid(ueCtrl jsonapi.ControlURI, ueAddr netip.Add
 	return slice.(*Slice).sessions.GetNextDownlinkFteid(ueCtrl, ueAddr)
 }
 
-func (smf *Smf) UpdateSessionDownlink(ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn string, oldGnbCtrl jsonapi.ControlURI) error {
-	return smf.UpdateSessionDownlinkContext(smf.Context(), ueCtrl, ueAddr, dnn, oldGnbCtrl)
-}
-
 // Updates Session to NextDownlinkFteid
-func (smf *Smf) UpdateSessionDownlinkContext(ctx context.Context, ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn string, oldGnbCtrl jsonapi.ControlURI) error {
+func (smf *Smf) UpdateSessionDownlink(ctx context.Context, ueCtrl jsonapi.ControlURI, ueAddr netip.Addr, dnn config.SliceName, oldGnbCtrl jsonapi.ControlURI) error {
 	s, ok := smf.slices.Load(dnn)
 	if !ok {
 		return ErrDnnNotFound

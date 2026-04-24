@@ -14,12 +14,12 @@ import (
 )
 
 type AreasMap struct {
-	content map[string][]jsonapi.ControlURI
+	content map[config.AreaName][]jsonapi.ControlURI
 }
 
-func NewAreasMap(areas map[string]config.Area) AreasMap {
+func NewAreasMap(areas map[config.AreaName]config.Area) AreasMap {
 	m := AreasMap{
-		content: make(map[string][]jsonapi.ControlURI),
+		content: make(map[config.AreaName][]jsonapi.ControlURI),
 	}
 	for k, area := range areas {
 		m.content[k] = area.Gnbs
@@ -27,7 +27,7 @@ func NewAreasMap(areas map[string]config.Area) AreasMap {
 	return m
 }
 
-func (a AreasMap) Area(gnb jsonapi.ControlURI) (string, bool) {
+func (a AreasMap) Area(gnb jsonapi.ControlURI) (config.AreaName, bool) {
 	for name, area := range a.content {
 		if slices.Contains(area, gnb) {
 			return name, true
@@ -36,7 +36,7 @@ func (a AreasMap) Area(gnb jsonapi.ControlURI) (string, bool) {
 	return "", false
 }
 
-func (a AreasMap) Contains(areaName string, gnb jsonapi.ControlURI) bool {
+func (a AreasMap) Contains(areaName config.AreaName, gnb jsonapi.ControlURI) bool {
 	if area, ok := a.content[areaName]; ok {
 		if slices.Contains(area, gnb) {
 			return true

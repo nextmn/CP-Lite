@@ -8,11 +8,15 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/nextmn/json-api/jsonapi"
 
 	"gopkg.in/yaml.v3"
 )
+
+type SliceName string
+type AreaName string
 
 func ParseConf(file string) (*CPConfig, error) {
 	var conf CPConfig
@@ -32,11 +36,12 @@ func ParseConf(file string) (*CPConfig, error) {
 }
 
 type CPConfig struct {
-	Control Control          `yaml:"control"`
-	Pfcp    netip.Addr       `yaml:"pfcp"`
-	Slices  map[string]Slice `yaml:"slices"`
-	Areas   map[string]Area  `yaml:"areas"`
-	Logger  *Logger          `yaml:"logger,omitempty"`
+	Control   Control             `yaml:"control"`
+	Pfcp      netip.Addr          `yaml:"pfcp"`
+	Slices    map[SliceName]Slice `yaml:"slices"`
+	Areas     map[AreaName]Area   `yaml:"areas"`
+	Emulation Emulation           `yaml:"emulation"`
+	Logger    *Logger             `yaml:"logger,omitempty"`
 }
 
 type Control struct {
@@ -60,11 +65,39 @@ type Interface struct {
 }
 
 type Area struct {
-	Gnbs  []jsonapi.ControlURI      `yaml:"gnbs"`
-	Paths map[string][]GTPInterface `yaml:"paths"`
+	OneWayDelay time.Duration                `yaml:"one-way-delay"`
+	Gnbs        []jsonapi.ControlURI         `yaml:"gnbs"`
+	Paths       map[SliceName][]GTPInterface `yaml:"paths"`
 }
 
 type GTPInterface struct {
 	NodeID        netip.Addr `yaml:"node-id"`
 	InterfaceAddr netip.Addr `yaml:"interface-addr"`
+}
+
+type Emulation struct {
+	HandoverNotify time.Duration `yaml:"handover-notify"`
+	N4SR4MEC       N4SR4MEC      `yaml:"n4-sr4mec"`
+}
+
+type N4SR4MEC struct {
+	Control Control               `yaml:"control"`
+	Enabled bool                  `yaml:"enabled"`
+	Slices  map[SliceName]SliceSR `yaml:"slices"`
+}
+
+type SliceSR struct {
+	MigrationAPosteriori bool          `yaml:"migration-a-posteriori"`
+	MigrationDelay       time.Duration `yaml:"migration-delay"`
+	Service              netip.Addr    `yaml:"service"`
+	PsEstablishment      SRConfig      `yaml:"ps-establishment"`
+	HandoverMigration    SRConfig      `yaml:"handover-migration"`
+}
+
+type SRConfig struct {
+	Srgw             jsonapi.ControlURI `yaml:"srgw"`
+	SrgwGtp4         netip.Addr         `yaml:"srgw-gtp4"`
+	Anchor           jsonapi.ControlURI `yaml:"anchor"`
+	UplinkSegments   []string           `yaml:"uplink-segments"`
+	DownlinkSegments []string           `yaml:"downlink-segments"`
 }

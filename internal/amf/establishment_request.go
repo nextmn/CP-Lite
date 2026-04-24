@@ -7,8 +7,11 @@ package amf
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
+
+	"github.com/nextmn/cp-lite/internal/config"
 
 	"github.com/nextmn/json-api/jsonapi"
 	"github.com/nextmn/json-api/jsonapi/n1n2"
@@ -29,15 +32,19 @@ func (amf *Amf) EstablishmentRequest(c *gin.Context) {
 		"gnb": ps.Gnb.String(),
 		"dnn": ps.Dnn,
 	}).Info("New PDU Session establishment Request")
-	go amf.HandleEstablishmentRequest(ps)
+	go func() {
+		if amf.srCtrl == nil {
+			amf.HandleEstablishmentRequest(ps)
+		} else {
+			amf.HandleEstablishmentRequestSR4MEC(ps)
+		}
+	}()
 	c.JSON(http.StatusAccepted, jsonapi.Message{Message: "please refer to logs for more information"})
 }
 
-func (amf *Amf) HandleEstablishmentRequest(ps n1n2.PduSessionEstabReqMsg) {
+func (amf *Amf) HandleEstablishmentRequestSR4MEC(ps n1n2.PduSessionEstabReqMsg) {
 	ctx := amf.Context()
-	// TODO: use ctx.WithTimeout()
-
-	ueIpAddr, err := amf.smf.GetNextUeIpAddr(ps.Dnn)
+	ueIpAddr, err := amf.smf.GetNextUeIpAddr(config.SliceName(ps.Dnn))
 	if err != nil {
 		logrus.WithError(err).WithFields(logrus.Fields{
 			"dnn": ps.Dnn,
@@ -46,9 +53,14 @@ func (amf *Amf) HandleEstablishmentRequest(ps n1n2.PduSessionEstabReqMsg) {
 		}).Error("Could not get next IP Address for this DNN")
 		return
 	}
-	pduSession, err := amf.smf.CreateSessionUplinkContext(ctx, ps.Ue, ueIpAddr, ps.Gnb, ps.Dnn)
+	pduSession, err := amf.srCtrl.CreateSessionUplink(ctx, ps.Ue, ueIpAddr, ps.Gnb, config.SliceName(ps.Dnn))
 	if err != nil {
-		logrus.WithError(err).Error("Could not create PDU Session Uplink")
+		logrus.WithError(err).WithFields(logrus.Fields{
+			"dnn": ps.Dnn,
+			"ue":  ps.Ue.String(),
+			"gnb": ps.Gnb.String(),
+		}).Error("Could not create PDU Session Uplink")
+		return
 	}
 
 	// send PseAccept to UE
@@ -72,7 +84,80 @@ func (amf *Amf) HandleEstablishmentRequest(ps n1n2.PduSessionEstabReqMsg) {
 	}
 	req.Header.Set("User-Agent", amf.userAgent)
 	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
-	if _, err := amf.client.Do(req); err != nil {
-		logrus.WithError(err).Error("Could not send ps/n2-establishment-request")
+
+	// send request after one-way-delay is over
+	ctxDelay, cancel := context.WithTimeout(ctx, amf.n2.OneWayDelay(ps.Gnb))
+	defer cancel()
+	select {
+	case <-ctxDelay.Done():
+		select {
+		case <-ctx.Done():
+			logrus.WithError(ctx.Err()).Error("Context was done before sending ps/n2-establishment-request")
+		default:
+			if _, err := amf.client.Do(req); err != nil {
+				logrus.WithError(err).Error("Could not send ps/n2-establishment-request")
+			}
+		}
+	}
+}
+
+func (amf *Amf) HandleEstablishmentRequest(ps n1n2.PduSessionEstabReqMsg) {
+	ctx := amf.Context()
+	// TODO: use ctx.WithTimeout()
+
+	ueIpAddr, err := amf.smf.GetNextUeIpAddr(config.SliceName(ps.Dnn))
+	if err != nil {
+		logrus.WithError(err).WithFields(logrus.Fields{
+			"dnn": ps.Dnn,
+			"ue":  ps.Ue.String(),
+			"gnb": ps.Gnb.String(),
+		}).Error("Could not get next IP Address for this DNN")
+		return
+	}
+	pduSession, err := amf.smf.CreateSessionUplink(ctx, ps.Ue, ueIpAddr, ps.Gnb, config.SliceName(ps.Dnn))
+	if err != nil {
+		logrus.WithError(err).WithFields(logrus.Fields{
+			"dnn": ps.Dnn,
+			"ue":  ps.Ue.String(),
+			"gnb": ps.Gnb.String(),
+		}).Error("Could not create PDU Session Uplink")
+		return
+	}
+
+	// send PseAccept to UE
+	n2PsReq := n1n2.N2PduSessionReqMsg{
+		Cp: amf.control,
+		UeInfo: n1n2.PduSessionEstabAcceptMsg{
+			Header: ps,
+			Addr:   pduSession.UeIpAddr,
+		},
+		UplinkFteid: *pduSession.UplinkFteid,
+	}
+	reqBody, err := json.Marshal(n2PsReq)
+	if err != nil {
+		logrus.WithError(err).Error("Could not marshal n1n2.N2PduSessionReqMsg")
+		return
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, ps.Gnb.JoinPath("ps/n2-establishment-request").String(), bytes.NewBuffer(reqBody))
+	if err != nil {
+		logrus.WithError(err).Error("Could not create request for ps/n2-establishment-request")
+		return
+	}
+	req.Header.Set("User-Agent", amf.userAgent)
+	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
+
+	// send request after one-way-delay is over
+	ctxDelay, cancel := context.WithTimeout(ctx, amf.n2.OneWayDelay(ps.Gnb))
+	defer cancel()
+	select {
+	case <-ctxDelay.Done():
+		select {
+		case <-ctx.Done():
+			logrus.WithError(ctx.Err()).Error("Context was done before sending ps/n2-establishment-request")
+		default:
+			if _, err := amf.client.Do(req); err != nil {
+				logrus.WithError(err).Error("Could not send ps/n2-establishment-request")
+			}
+		}
 	}
 }

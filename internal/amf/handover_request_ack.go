@@ -7,8 +7,11 @@ package amf
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
+
+	"github.com/nextmn/cp-lite/internal/config"
 
 	"github.com/nextmn/json-api/jsonapi"
 	"github.com/nextmn/json-api/jsonapi/n1n2"
@@ -29,8 +32,104 @@ func (amf *Amf) HandoverRequestAck(c *gin.Context) {
 		"gnb-source": m.SourcegNB.String(),
 		"gnb-target": m.TargetgNB.String(),
 	}).Info("New Handover Request Ack")
-	go amf.HandleHandoverRequestAck(m)
+	go func() {
+		if amf.srCtrl == nil {
+			amf.HandleHandoverRequestAck(m)
+		} else {
+			amf.HandleHandoverRequestAckSR4MEC(m)
+		}
+	}()
 	c.JSON(http.StatusAccepted, jsonapi.Message{Message: "please refer to logs for more information"})
+}
+
+func (amf *Amf) HandleHandoverRequestAckSR4MEC(m n1n2.HandoverRequestAck) {
+	ctx := amf.Context()
+	// TODO: if UPF-i change, push new DL rules
+
+	sourceArea, ok := amf.smf.Areas.Area(m.SourcegNB)
+	if !ok {
+		logrus.WithFields(logrus.Fields{
+			"source-gnb": m.SourcegNB,
+		}).Error("Unknown Area for source gNB")
+		return
+	}
+	targetArea, ok := amf.smf.Areas.Area(m.TargetgNB)
+	if !ok {
+		logrus.WithFields(logrus.Fields{
+			"target-gnb": m.TargetgNB,
+		}).Error("Unknown Area for target gNB")
+		return
+	}
+
+	// Create forwarding route
+	sessions := make([]n1n2.Session, len(m.Sessions))
+	for i, s := range m.Sessions {
+		//TODO: direct / indirect forwarding: for now we will do only indirect forwarding
+		if sourceArea != targetArea {
+			pduSessionN3, err := amf.srCtrl.CreateForwarding(ctx, m.UeCtrl, s.Addr, m.TargetgNB, config.SliceName(s.Dnn), s.DownlinkFteid)
+			if err != nil {
+				logrus.WithError(err).WithFields(logrus.Fields{
+					"ue-ctrl":    m.UeCtrl,
+					"ue-addr":    s.Addr,
+					"dnn":        s.Dnn,
+					"target-gnb": m.TargetgNB,
+				}).Error("Could not establish new uplink path")
+				continue
+			}
+			sessions[i] = n1n2.Session{
+				Addr:                 s.Addr,
+				Dnn:                  s.Dnn,
+				UplinkFteid:          s.UplinkFteid,
+				DownlinkFteid:        pduSessionN3.TargetDownlinkFteid,
+				ForwardDownlinkFteid: pduSessionN3.ForwardingFteid,
+			}
+		} else {
+			logrus.WithFields(logrus.Fields{
+				"ue-ctrl":    m.UeCtrl,
+				"ue-addr":    s.Addr,
+				"dnn":        s.Dnn,
+				"target-gnb": m.TargetgNB,
+			}).Error("HO is not yet implemented when source area = target area")
+			return
+		}
+	}
+
+	// forward to UE
+	resp := n1n2.HandoverCommand{
+		Cp:        m.Cp,
+		TargetGnb: m.TargetgNB,
+		SourceGnb: m.SourcegNB,
+		UeCtrl:    m.UeCtrl,
+		Sessions:  sessions,
+	}
+
+	reqBody, err := json.Marshal(resp)
+	if err != nil {
+		logrus.WithError(err).Error("Could not marshal n1n2.HandoverRequest")
+		return
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, m.SourcegNB.JoinPath("ps/handover-command").String(), bytes.NewBuffer(reqBody))
+	if err != nil {
+		logrus.WithError(err).Error("Could not create request for ps/handover-command")
+		return
+	}
+	req.Header.Set("User-Agent", amf.userAgent)
+	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
+
+	// send request after one-way-delay is over
+	ctxDelay, cancel := context.WithTimeout(ctx, amf.n2.OneWayDelay(m.SourcegNB))
+	defer cancel()
+	select {
+	case <-ctxDelay.Done():
+		select {
+		case <-ctx.Done():
+			logrus.WithError(ctx.Err()).Error("Context was done before sending ps/handover-command")
+		default:
+			if _, err := amf.client.Do(req); err != nil {
+				logrus.WithError(err).Error("Could not send ps/handover-command")
+			}
+		}
+	}
 }
 
 // Handover Request Ack is send by the target gNB to the Control Plane.
@@ -59,25 +158,30 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 	// send Handover Command to source gNB with "forwarding rule to targetGNB" (direct forwarding)
 	sessions := make([]n1n2.Session, len(m.Sessions))
 	for i, s := range m.Sessions {
-		indirectForwardingRequired, err := amf.smf.GetSessionIndirectForwardingRequired(m.UeCtrl, s.Addr, s.Dnn)
+		indirectForwardingRequired, err := amf.smf.GetSessionIndirectForwardingRequired(m.UeCtrl, s.Addr, config.SliceName(s.Dnn))
 		if err != nil {
 			// TODO: notify of failure
 			continue
 		}
 		if indirectForwardingRequired {
-			dl, err := amf.smf.GetSessionDownlinkFteid(m.UeCtrl, s.Addr, s.Dnn)
+			dl, err := amf.smf.GetSessionDownlinkFteid(m.UeCtrl, s.Addr, config.SliceName(s.Dnn))
 			if err != nil {
 				logrus.WithError(err).Error("could not get session downlink fteid")
 				// TODO: notify of failure
 				continue
 			}
-			upfiFwTarget, err := amf.smf.SessionFirstUpf(m.UeCtrl, s.Addr, s.Dnn, m.TargetgNB)
+			upfiFwTarget, err := amf.smf.SessionFirstUpf(m.UeCtrl, s.Addr, config.SliceName(s.Dnn), m.TargetgNB)
 			if err != nil {
-				logrus.WithError(err).Error("upfi-fw-target not found")
+				logrus.WithError(err).WithFields(logrus.Fields{
+					"ue":          m.UeCtrl,
+					"pdu-session": s.Addr,
+					"dnn":         s.Dnn,
+					"target-gnb":  m.TargetgNB,
+				}).Error("upfi-fw-target not found")
 				// TODO: notify failure
 				continue
 			}
-			upfiFwSource, err := amf.smf.SessionFirstUpf(m.UeCtrl, s.Addr, s.Dnn, m.SourcegNB)
+			upfiFwSource, err := amf.smf.SessionFirstUpf(m.UeCtrl, s.Addr, config.SliceName(s.Dnn), m.SourcegNB)
 			if err != nil {
 				logrus.WithError(err).Error("upfi-fw-source not found")
 				// TODO: notify failure
@@ -89,13 +193,13 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 				continue
 			}
 			// store DownlinkFteid to update the DL path upon reception of Handover Notfify
-			if err := amf.smf.StoreNextDownlinkFteid(m.UeCtrl, s.Addr, s.Dnn, s.DownlinkFteid); err != nil {
+			if err := amf.smf.StoreNextDownlinkFteid(m.UeCtrl, s.Addr, config.SliceName(s.Dnn), s.DownlinkFteid); err != nil {
 				logrus.WithError(err).Error("Could not store next downlink fteid")
 				// TODO: notify of failure
 				continue
 			}
 			// push new (temporary) DL rule on target UPF-i only (FAR: to target gNB) [DL-TI]
-			fwFteidTarget, err := amf.smf.CreateSessionDownlinkFWUpfIContext(ctx, m.UeCtrl, s.Addr, s.Dnn, upfiFwTarget, *s.DownlinkFteid)
+			fwFteidTarget, err := amf.smf.CreateSessionDownlinkFWUpfI(ctx, m.UeCtrl, s.Addr, config.SliceName(s.Dnn), upfiFwTarget, *s.DownlinkFteid)
 			if err != nil {
 				logrus.WithError(err).WithFields(logrus.Fields{
 					"ue-ctrl":           m.UeCtrl,
@@ -110,7 +214,7 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 			}
 			if sourceArea != targetArea {
 				// push (temporary) forwarding rule on source UPF-i only (FAR: to <DL-TI>))
-				fwFteidSource, err := amf.smf.CreateSessionDownlinkFWUpfIContext(ctx, m.UeCtrl, s.Addr, s.Dnn, upfiFwSource, *fwFteidTarget)
+				fwFteidSource, err := amf.smf.CreateSessionDownlinkFWUpfI(ctx, m.UeCtrl, s.Addr, config.SliceName(s.Dnn), upfiFwSource, *fwFteidTarget)
 				if err != nil {
 					logrus.WithError(err).Error("Could not push temporary DL rule on source UPF-i")
 					// TODO: notify failure
@@ -134,7 +238,7 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 			}
 		} else {
 			// direct forwarding: no modification of UPF-i: forward directly to target gNB
-			dl, err := amf.smf.GetSessionDownlinkFteid(m.UeCtrl, s.Addr, s.Dnn)
+			dl, err := amf.smf.GetSessionDownlinkFteid(m.UeCtrl, s.Addr, config.SliceName(s.Dnn))
 			if err != nil {
 				// TODO: notify of failure
 				continue
@@ -147,7 +251,7 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 				ForwardDownlinkFteid: s.DownlinkFteid,
 			}
 			// we store the DL FTEID: upon reception of Handover Notify, UPF-i will be updated to use it
-			if err := amf.smf.StoreNextDownlinkFteid(m.UeCtrl, s.Addr, s.Dnn, s.DownlinkFteid); err != nil {
+			if err := amf.smf.StoreNextDownlinkFteid(m.UeCtrl, s.Addr, config.SliceName(s.Dnn), s.DownlinkFteid); err != nil {
 				// TODO: notify of failure
 				continue
 			}
@@ -175,7 +279,19 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 	}
 	req.Header.Set("User-Agent", amf.userAgent)
 	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
-	if _, err := amf.client.Do(req); err != nil {
-		logrus.WithError(err).Error("Could not send ps/handover-command")
+
+	// send request after one-way-delay is over
+	ctxDelay, cancel := context.WithTimeout(ctx, amf.n2.OneWayDelay(m.SourcegNB))
+	defer cancel()
+	select {
+	case <-ctxDelay.Done():
+		select {
+		case <-ctx.Done():
+			logrus.WithError(ctx.Err()).Error("Context was done before sending ps/handover-command")
+		default:
+			if _, err := amf.client.Do(req); err != nil {
+				logrus.WithError(err).Error("Could not send ps/handover-command")
+			}
+		}
 	}
 }

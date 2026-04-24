@@ -9,19 +9,24 @@ import (
 	"context"
 )
 
+// WithContext is used to attach a [context.Context] to a long-lived entyt.
+// This entity will then use this Context for all operations (serving requests, etc.).
 type WithContext struct {
 	// not exported because must not be modified
 	ctx context.Context
 }
 
-func (wc *WithContext) InitContext(ctx context.Context) error {
+// InitContext initializes the [context.Context].
+// The provided Context must be non-nil, else it will panic.
+func (wc *WithContext) InitContext(ctx context.Context) {
 	if ctx == nil {
-		return ErrNilCtx
+		panic("nil context")
 	}
 	wc.ctx = ctx
-	return nil
 }
 
+// Context returns the attached [context.Context],
+// or the Background Context if no Context has been attached yet.
 func (wc *WithContext) Context() context.Context {
 	if wc.ctx != nil {
 		return wc.ctx
