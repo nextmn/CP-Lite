@@ -32,8 +32,103 @@ func (amf *Amf) HandoverRequired(c *gin.Context) {
 		"gnb-source": m.SourcegNB.String(),
 		"gnb-target": m.TargetgNB.String(),
 	}).Info("New Handover Required")
-	go amf.HandleHandoverRequired(m)
+	go func() {
+		if amf.srCtrl == nil {
+			amf.HandleHandoverRequired(m)
+		} else {
+			amf.HandleHandoverRequiredSR4MEC(m)
+		}
+	}()
 	c.JSON(http.StatusAccepted, jsonapi.Message{Message: "please refer to logs for more information"})
+}
+
+func (amf *Amf) HandleHandoverRequiredSR4MEC(m n1n2.HandoverRequired) {
+	ctx := amf.Context()
+
+	sourceArea, ok := amf.smf.Areas.Area(m.SourcegNB)
+	if !ok {
+		logrus.WithFields(logrus.Fields{
+			"source-gnb": m.SourcegNB,
+		}).Error("Unknown Area for source gNB")
+		return
+	}
+	targetArea, ok := amf.smf.Areas.Area(m.TargetgNB)
+	if !ok {
+		logrus.WithFields(logrus.Fields{
+			"target-gnb": m.TargetgNB,
+		}).Error("Unknown Area for target gNB")
+		return
+	}
+
+	// send handover-request to target with target SRGW FTEID to create new uplink
+	sessions := make([]n1n2.Session, len(m.Sessions))
+	for i, s := range m.Sessions {
+		//TODO: direct / indirect forwarding: for now we will do only indirect forwarding
+		if sourceArea != targetArea {
+			pduSessionN3, err := amf.srCtrl.CreateNewUplinkExistingSession(ctx, m.Ue, s.Addr, m.TargetgNB, config.SliceName(s.Dnn))
+			if err != nil {
+				logrus.WithError(err).WithFields(logrus.Fields{
+					"ue":         m.Ue,
+					"ue-addr":    s.Addr,
+					"dnn":        s.Dnn,
+					"target-gnb": m.TargetgNB,
+				}).Error("Could not establish new uplink path")
+				continue
+			}
+			sessions[i] = n1n2.Session{
+				Addr:        s.Addr,
+				Dnn:         s.Dnn,
+				UplinkFteid: pduSessionN3.TargetUplinkFteid,
+			}
+		} else {
+			logrus.WithFields(logrus.Fields{
+				"ue":         m.Ue,
+				"ue-addr":    s.Addr,
+				"dnn":        s.Dnn,
+				"target-gnb": m.TargetgNB,
+			}).Error("HO is not yet implemented when source area = target area")
+			return
+		}
+	}
+	// send PseAccept to UE
+	resp := n1n2.HandoverRequest{
+		// Header
+		UeCtrl:    m.Ue,
+		Cp:        m.Cp,
+		TargetgNB: m.TargetgNB,
+
+		// Handover Request
+		SourcegNB: m.SourcegNB,
+		Sessions:  sessions,
+	}
+	reqBody, err := json.Marshal(resp)
+	if err != nil {
+		logrus.WithError(err).Error("Could not marshal n1n2.HandoverRequest")
+		return
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, m.TargetgNB.JoinPath("ps/handover-request").String(), bytes.NewBuffer(reqBody))
+	if err != nil {
+		logrus.WithError(err).Error("Could not create request for ps/handover-request")
+		return
+	}
+	req.Header.Set("User-Agent", amf.userAgent)
+	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
+
+	// send request after one-way-delay is over
+	ctxDelay, cancel := context.WithTimeout(ctx, amf.n2.OneWayDelay(m.TargetgNB))
+	defer cancel()
+	select {
+	case <-ctxDelay.Done():
+		select {
+		case <-ctx.Done():
+			logrus.WithError(err).Error("Context was done before sending ps/handover-request")
+		default:
+			if _, err := amf.client.Do(req); err != nil {
+				logrus.WithError(err).Error("Could not send ps/handover-request")
+			}
+		}
+	}
+
 }
 
 // Handover Required is send by the source gNB to the Control Plane.

@@ -31,7 +31,64 @@ func (amf *Amf) HandoverNotify(c *gin.Context) {
 		"gbn-source": m.SourceGnb.String(),
 	}).Info("New Handover Confirm")
 	go amf.HandleHandoverNotify(m)
+	go func() {
+		if amf.srCtrl == nil {
+			amf.HandleHandoverNotify(m)
+		} else {
+			amf.HandleHandoverNotifySR4MEC(m)
+		}
+	}()
 	c.JSON(http.StatusAccepted, jsonapi.Message{Message: "please refer to logs for more information"})
+}
+
+func (amf *Amf) HandleHandoverNotifySR4MEC(m n1n2.HandoverNotify) {
+	ctx := amf.Context()
+	sourceArea, ok := amf.smf.Areas.Area(m.SourceGnb)
+	if !ok {
+		logrus.WithFields(logrus.Fields{
+			"source-gnb": m.SourceGnb,
+		}).Error("Unknown Area for source gNB")
+		return
+	}
+	targetArea, ok := amf.smf.Areas.Area(m.TargetGnb)
+	if !ok {
+		logrus.WithFields(logrus.Fields{
+			"target-gnb": m.TargetGnb,
+		}).Error("Unknown Area for target gNB")
+		return
+	}
+
+	// We miss a lot of NFs because this is a simplified 5GC.
+	// A real 5GC would take more time to perform this operation because of calls to NFs,
+	// including notably, requests to NRF, retrieval of the context, security checks, and sending a PDUSessionUpdateSMContext Request to the SMF.
+	// We can increase artificially the processing time to have a result closer of a real setup.
+	ctxProcessing, cancel := context.WithTimeout(ctx, amf.emulation.HandoverNotify)
+	defer cancel()
+	select {
+	case <-ctxProcessing.Done():
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+	}
+
+	for _, s := range m.Sessions {
+		//TODO: direct / indirect forwarding: for now we will do only indirect forwarding
+		if sourceArea != targetArea {
+			go amf.srCtrl.CreateNewDownlinkExistingSession(ctx, m.UeCtrl, s.Addr, config.SliceName(s.Dnn))
+		} else {
+			logrus.WithFields(logrus.Fields{
+				"ue-ctrl":     m.UeCtrl,
+				"ue-addr":     s.Addr,
+				"dnn":         s.Dnn,
+				"source-area": sourceArea,
+				"target-area": targetArea,
+			}).Error("HO is not yet implemented when source area = target area")
+			return
+		}
+	}
+
 }
 
 // Handover Notify is send by the target gNB to the Control Plane.

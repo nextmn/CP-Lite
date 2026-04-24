@@ -12,8 +12,21 @@ import (
 )
 
 type PduSessionN3 struct {
-	UeIpAddr      netip.Addr
+	UeIpAddr netip.Addr
+
+	// At PS Establishment
 	UplinkFteid   *jsonapi.Fteid
 	UplinkRule    *url.URL
 	DownlinkFteid *jsonapi.Fteid
+	DownlinkRule  *url.URL
+
+	// After HO Required
+	TargetUplinkFteid *jsonapi.Fteid
+	TargetUplinkRule  *url.URL
+
+	// After HO Request Ack
+	ForwardingFteid     *jsonapi.Fteid
+	ForwardingRule      *url.URL
+	TargetDownlinkFteid *jsonapi.Fteid
+	TargetDownlinkRule  *url.URL
 }
