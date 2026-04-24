@@ -29,7 +29,7 @@ func (amf *Amf) HandoverNotify(c *gin.Context) {
 		"ue":         m.UeCtrl.String(),
 		"gnb-target": m.TargetGnb.String(),
 		"gbn-source": m.SourceGnb.String(),
-	}).Info("New Handover Confirm")
+	}).Info("New Handover Notify")
 	go amf.HandleHandoverNotify(m)
 	go func() {
 		if amf.srCtrl == nil {

@@ -67,10 +67,10 @@ func (c *Ctrl) pushSingleRule(ctx context.Context, uri jsonapi.ControlURI, data 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == 400 {
-		logrus.WithError(err).Error("HTTP Bad Request")
+		logrus.Error("HTTP Bad Request")
 		return nil, fmt.Errorf("HTTP Bad request")
 	} else if resp.StatusCode >= 500 {
-		logrus.WithError(err).Error("HTTP internal error")
+		logrus.Error("HTTP internal error")
 		return nil, fmt.Errorf("HTTP internal error")
 	} else if resp.StatusCode == 201 {
 		loc := resp.Header.Get("Location")
@@ -97,10 +97,10 @@ func (c *Ctrl) pushUpdateAction(ctx context.Context, url *url.URL, data []byte) 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == 400 {
-		logrus.WithError(err).Error("HTTP Bad Request")
+		logrus.Error("HTTP Bad Request")
 		return fmt.Errorf("HTTP Bad request")
 	} else if resp.StatusCode >= 500 {
-		logrus.WithError(err).Error("HTTP internal error")
+		logrus.Error("HTTP internal error")
 		return fmt.Errorf("HTTP internal error")
 	}
 	return nil
@@ -454,11 +454,12 @@ func (c *Ctrl) CreateNewDownlinkExistingSession(ctx context.Context, ueCtrl json
 		return err
 	}
 	// 2. update uplink action on target area
+	emptyAddr := netip.MustParseAddr("::")
 	action = n4tosrv6.Action{
-		SourceGtp4: &conf.HandoverMigration.SrgwGtp4,
+		SourceGtp4: &emptyAddr, // we cannot let empty because currently the srv6 netfunc is not allowing it in UpdateAction
 		SRH:        *srh,
 	}
-	data, err = json.Marshal(rule)
+	data, err = json.Marshal(action)
 	if err != nil {
 		return err
 	}
