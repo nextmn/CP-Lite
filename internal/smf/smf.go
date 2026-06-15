@@ -270,11 +270,99 @@ func (smf *Smf) CreateSessionUplink(ctx context.Context, ueCtrl jsonapi.ControlU
 		return nil, ErrUpfNotFound
 	}
 	upfa := upfa_any.(*Upf)
-	last_fteid, err := upfa.CreateUplinkAnchor(ctx, ueIpAddr, dnn, upfaInterface.InterfaceAddr)
+	last_fteid, err := upfa.CreateUplinkAnchor(ctx, ueIpAddr, dnn, upfaInterface.InterfaceAddr, 255)
 	if err != nil {
 		return nil, err
 	}
 	if err := upfa.CreateSession(ueIpAddr); err != nil {
+		return nil, err
+	}
+
+	// 3. init path from anchor
+	for i := len(path) - 2; i >= 0; i-- {
+		gtpInterface := path[i]
+		upf_any, ok := smf.upfs.Load(gtpInterface.NodeID)
+		if !ok {
+			return nil, ErrUpfNotFound
+		}
+		upf := upf_any.(*Upf)
+		last_fteid, err = upf.CreateUplinkIntermediate(ctx, ueIpAddr, dnn, gtpInterface.InterfaceAddr, last_fteid)
+		if err != nil {
+			logrus.WithError(err).Error("Could not create uplink intermediate")
+			return nil, err
+		}
+		if err := upf.CreateSession(ueIpAddr); err != nil {
+			logrus.WithError(err).Error("Could not create session uplink")
+			return nil, err
+		}
+	}
+
+	session, err := slice.sessions.Get(ueCtrl, ueIpAddr)
+	if err != nil {
+		// store session
+		session = &PduSessionN3{
+			UeIpAddr:    ueIpAddr,
+			UplinkFteid: last_fteid,
+		}
+		slice.sessions.Add(ueCtrl, session)
+	} else {
+		// update session
+		if err := slice.sessions.SetUplinkFteid(ueCtrl, ueIpAddr, last_fteid); err != nil {
+			return nil, err
+		}
+	}
+	return session, nil
+}
+
+func (smf *Smf) UpdateSessionUplink(ctx context.Context, ueCtrl jsonapi.ControlURI, ueIpAddr netip.Addr, gnbCtrl jsonapi.ControlURI, dnn config.SliceName) (*PduSessionN3, error) {
+	if ctx == nil {
+		panic("nil context")
+	}
+	if !smf.started {
+		return nil, ErrSmfNotStarted
+	}
+	smfCtx := smf.Context()
+	select {
+	case <-ctx.Done():
+		// if ctx is over, abort
+		return nil, ctx.Err()
+	case <-smfCtx.Done():
+		// if smf.ctx is over, abort
+		return nil, smfCtx.Err()
+	default:
+	}
+	// check for existing session
+	s, ok := smf.slices.Load(dnn)
+	if !ok {
+		return nil, ErrDnnNotFound
+	}
+	slice := s.(*Slice)
+	// 1. check path
+	area, ok := smf.Areas.Area(gnbCtrl)
+	if !ok {
+		return nil, ErrAreaNotFound
+	}
+
+	path, ok := slice.Paths[area]
+	if !ok {
+		return nil, ErrPathNotFound
+	}
+
+	if len(path) == 0 {
+		return nil, ErrUpfNotFound
+	}
+	// 2. init anchor
+	upfaInterface := path[len(path)-1]
+	upfa_any, ok := smf.upfs.Load(upfaInterface.NodeID)
+	if !ok {
+		return nil, ErrUpfNotFound
+	}
+	upfa := upfa_any.(*Upf)
+	last_fteid, err := upfa.CreateUplinkAnchor(ctx, ueIpAddr, dnn, upfaInterface.InterfaceAddr, 254)
+	if err != nil {
+		return nil, err
+	}
+	if err := upfa.UpdateSession(ueIpAddr); err != nil {
 		return nil, err
 	}
 

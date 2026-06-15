@@ -153,7 +153,7 @@ func (upf *Upf) CreateUplinkIntermediateWithFteid(ueIp netip.Addr, dnn config.Sl
 	))
 }
 
-func (upf *Upf) CreateUplinkAnchor(ctx context.Context, ueIp netip.Addr, dnn config.SliceName, listenInterface netip.Addr) (*jsonapi.Fteid, error) {
+func (upf *Upf) CreateUplinkAnchor(ctx context.Context, ueIp netip.Addr, dnn config.SliceName, listenInterface netip.Addr, precedence uint32) (*jsonapi.Fteid, error) {
 	if ctx == nil {
 		panic("nil context")
 	}
@@ -168,19 +168,19 @@ func (upf *Upf) CreateUplinkAnchor(ctx context.Context, ueIp netip.Addr, dnn con
 			return nil, res.Err
 		}
 		listenFteid := res.Fteid
-		upf.CreateUplinkAnchorWithFteid(ueIp, dnn, listenFteid)
+		upf.CreateUplinkAnchorWithFteid(ueIp, dnn, listenFteid, precedence)
 		return listenFteid, nil
 	}
 }
 
-func (upf *Upf) CreateUplinkAnchorWithFteid(ueIp netip.Addr, dnn config.SliceName, listenFteid *jsonapi.Fteid) {
+func (upf *Upf) CreateUplinkAnchorWithFteid(ueIp netip.Addr, dnn config.SliceName, listenFteid *jsonapi.Fteid, precedence uint32) {
 	r := upf.Rules(ueIp)
 	r.Lock()
 	defer r.Unlock()
 	r.currentpdrid += 1
 	r.currentfarid += 1
 
-	r.createpdrs = append(r.createpdrs, ie.NewCreatePDR(ie.NewPDRID(r.currentpdrid), ie.NewPrecedence(255),
+	r.createpdrs = append(r.createpdrs, ie.NewCreatePDR(ie.NewPDRID(r.currentpdrid), ie.NewPrecedence(precedence),
 		ie.NewPDI(
 			ie.NewSourceInterface(ie.SrcInterfaceAccess),
 			ie.NewFTEID(FteidTypeIPv4, listenFteid.Teid, listenFteid.Addr.AsSlice(), nil, 0),
