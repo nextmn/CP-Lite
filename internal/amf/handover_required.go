@@ -33,10 +33,10 @@ func (amf *Amf) HandoverRequired(c *gin.Context) {
 		"gnb-target": m.TargetgNB.String(),
 	}).Info("New Handover Required")
 	go func() {
-		if amf.srCtrl == nil {
-			amf.HandleHandoverRequired(m)
-		} else {
+		if amf.sr4mecEnabled(config.SliceName(m.Sessions[0].Dnn)) { // TODO: refactor to allow both SR4MEC and ULCL in single HO
 			amf.HandleHandoverRequiredSR4MEC(m)
+		} else {
+			amf.HandleHandoverRequired(m)
 		}
 	}()
 	c.JSON(http.StatusAccepted, jsonapi.Message{Message: "please refer to logs for more information"})

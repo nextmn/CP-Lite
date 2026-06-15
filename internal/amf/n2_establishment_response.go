@@ -25,10 +25,10 @@ func (amf *Amf) N2EstablishmentResponse(c *gin.Context) {
 		return
 	}
 	go func() {
-		if amf.srCtrl == nil {
-			amf.HandleN2EstablishmentResponse(ps)
-		} else {
+		if amf.sr4mecEnabled(config.SliceName(ps.UeInfo.Header.Dnn)) {
 			amf.HandleN2EstablishmentResponseSR4MEC(ps)
+		} else {
+			amf.HandleN2EstablishmentResponse(ps)
 		}
 	}()
 	c.JSON(http.StatusAccepted, jsonapi.Message{Message: "please refer to logs for more information"})

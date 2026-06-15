@@ -32,10 +32,10 @@ func (amf *Amf) HandoverNotify(c *gin.Context) {
 	}).Info("New Handover Notify")
 	go amf.HandleHandoverNotify(m)
 	go func() {
-		if amf.srCtrl == nil {
-			amf.HandleHandoverNotify(m)
-		} else {
+		if amf.sr4mecEnabled(config.SliceName(m.Sessions[0].Dnn)) { // TODO: refactor to allow both SR4MEC and ULCL in single HO
 			amf.HandleHandoverNotifySR4MEC(m)
+		} else {
+			amf.HandleHandoverNotify(m)
 		}
 	}()
 	c.JSON(http.StatusAccepted, jsonapi.Message{Message: "please refer to logs for more information"})

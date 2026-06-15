@@ -33,10 +33,10 @@ func (amf *Amf) EstablishmentRequest(c *gin.Context) {
 		"dnn": ps.Dnn,
 	}).Info("New PDU Session establishment Request")
 	go func() {
-		if amf.srCtrl == nil {
-			amf.HandleEstablishmentRequest(ps)
-		} else {
+		if amf.sr4mecEnabled(config.SliceName(ps.Dnn)) {
 			amf.HandleEstablishmentRequestSR4MEC(ps)
+		} else {
+			amf.HandleEstablishmentRequest(ps)
 		}
 	}()
 	c.JSON(http.StatusAccepted, jsonapi.Message{Message: "please refer to logs for more information"})

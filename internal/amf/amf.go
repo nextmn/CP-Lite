@@ -112,6 +112,16 @@ func (amf *Amf) WaitShutdown(ctx context.Context) error {
 	}
 }
 
+func (amf *Amf) sr4mecEnabled(slice config.SliceName) bool {
+	if amf.srCtrl == nil {
+		return false
+	}
+	if _, ok := amf.emulation.N4SR4MEC.Slices[slice]; !ok {
+		return false
+	}
+	return true
+}
+
 // get status of the controller
 func Status(c *gin.Context) {
 	status := healthcheck.Status{
