@@ -226,15 +226,15 @@ func (c *Ctrl) CreateNewUplinkExistingSession(ctx context.Context, ueCtrl jsonap
 		return nil, fmt.Errorf("session not found")
 	}
 
-	session.TargetUplinkFteid = &jsonapi.Fteid{Addr: conf.HandoverMigration.SrgwGtp4, Teid: teid}
+	session.TargetUplinkFteid = &jsonapi.Fteid{Addr: conf.HandoverRebinding.SrgwGtp4, Teid: teid}
 
 	var segs []string
-	if conf.MigrationAPosteriori {
+	if conf.PostHandoverRebinding {
 		// preserve instance
 		segs = conf.PsEstablishment.UplinkSegments
 	} else {
 		// immediate instance update
-		segs = conf.HandoverMigration.UplinkSegments
+		segs = conf.HandoverRebinding.UplinkSegments
 	}
 	srh, err := n4tosrv6.NewSRH(segs)
 	if err != nil {
@@ -262,7 +262,7 @@ func (c *Ctrl) CreateNewUplinkExistingSession(ctx context.Context, ueCtrl jsonap
 		return nil, err
 	}
 
-	uloc, err := c.pushSingleRule(ctx, conf.HandoverMigration.Srgw, data)
+	uloc, err := c.pushSingleRule(ctx, conf.HandoverRebinding.Srgw, data)
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +270,7 @@ func (c *Ctrl) CreateNewUplinkExistingSession(ctx context.Context, ueCtrl jsonap
 	return session, nil
 }
 
-// Create an forwarding rule (when receive HO Request Ack), and a target DL rule if not doing migration a posteriori
+// Create an forwarding rule (when receive HO Request Ack), and a target DL rule if not doing post-handover rebinding
 func (c *Ctrl) CreateForwarding(ctx context.Context, ueCtrl jsonapi.ControlURI, ueIpAddr netip.Addr, gnbCtrl jsonapi.ControlURI, dnn config.SliceName, dlFteid *jsonapi.Fteid) (*PduSessionN3, error) {
 	teid := c.currentTeid
 	c.currentTeid++
@@ -284,12 +284,12 @@ func (c *Ctrl) CreateForwarding(ctx context.Context, ueCtrl jsonapi.ControlURI, 
 		return nil, fmt.Errorf("session not found")
 	}
 
-	session.ForwardingFteid = &jsonapi.Fteid{Addr: conf.HandoverMigration.SrgwGtp4, Teid: teid}
+	session.ForwardingFteid = &jsonapi.Fteid{Addr: conf.HandoverRebinding.SrgwGtp4, Teid: teid}
 	session.TargetDownlinkFteid = dlFteid
 
-	seglist := make([]string, len(conf.HandoverMigration.DownlinkSegments))
-	copy(seglist, conf.HandoverMigration.DownlinkSegments)
-	prefix, err := netip.ParsePrefix(conf.HandoverMigration.DownlinkSegments[0])
+	seglist := make([]string, len(conf.HandoverRebinding.DownlinkSegments))
+	copy(seglist, conf.HandoverRebinding.DownlinkSegments)
+	prefix, err := netip.ParsePrefix(conf.HandoverRebinding.DownlinkSegments[0])
 	if err != nil {
 		return nil, err
 	}
@@ -323,7 +323,7 @@ func (c *Ctrl) CreateForwarding(ctx context.Context, ueCtrl jsonapi.ControlURI, 
 		Action: n4tosrv6.Action{
 			// TODO: srv6 netfunc don't handle this for uplink rules, but we cannot use "downlink" which don't consider Match.Header data,
 			// but this is okay because it's only to create source address on gtp message, which we don't really need (current gNB implementation don't check source address)
-			SourceGtp4: &conf.HandoverMigration.SrgwGtp4,
+			SourceGtp4: &conf.HandoverRebinding.SrgwGtp4,
 			SRH:        *srh,
 		},
 	}
@@ -338,7 +338,7 @@ func (c *Ctrl) CreateForwarding(ctx context.Context, ueCtrl jsonapi.ControlURI, 
 	}
 	session.ForwardingRule = uloc
 
-	if !conf.MigrationAPosteriori {
+	if !conf.PostHandoverRebinding {
 		rule = n4tosrv6.Rule{
 			Enabled: true,
 			Type:    "downlink",
@@ -348,7 +348,7 @@ func (c *Ctrl) CreateForwarding(ctx context.Context, ueCtrl jsonapi.ControlURI, 
 				},
 			},
 			Action: n4tosrv6.Action{
-				SourceGtp4: &conf.HandoverMigration.SrgwGtp4,
+				SourceGtp4: &conf.HandoverRebinding.SrgwGtp4,
 				SRH:        *srh,
 			},
 		}
@@ -356,7 +356,7 @@ func (c *Ctrl) CreateForwarding(ctx context.Context, ueCtrl jsonapi.ControlURI, 
 		if err != nil {
 			return nil, err
 		}
-		uloc, err = c.pushSingleRule(ctx, conf.HandoverMigration.Anchor, data)
+		uloc, err = c.pushSingleRule(ctx, conf.HandoverRebinding.Anchor, data)
 		if err != nil {
 			return nil, err
 		}
@@ -378,13 +378,13 @@ func (c *Ctrl) CreateNewDownlinkExistingSession(ctx context.Context, ueCtrl json
 		return fmt.Errorf("session not found")
 	}
 
-	if !conf.MigrationAPosteriori {
+	if !conf.PostHandoverRebinding {
 		return nil // nothing to do except removing old rules (and I don't have the time to code this)
 	}
 	// update action in source anchor
-	seglist := make([]string, len(conf.HandoverMigration.DownlinkSegments))
-	copy(seglist, conf.HandoverMigration.DownlinkSegments)
-	prefix, err := netip.ParsePrefix(conf.HandoverMigration.DownlinkSegments[0])
+	seglist := make([]string, len(conf.HandoverRebinding.DownlinkSegments))
+	copy(seglist, conf.HandoverRebinding.DownlinkSegments)
+	prefix, err := netip.ParsePrefix(conf.HandoverRebinding.DownlinkSegments[0])
 	if err != nil {
 		return err
 	}
@@ -403,7 +403,7 @@ func (c *Ctrl) CreateNewDownlinkExistingSession(ctx context.Context, ueCtrl json
 		return err
 	}
 	action := n4tosrv6.Action{
-		SourceGtp4: &conf.HandoverMigration.SrgwGtp4,
+		SourceGtp4: &conf.HandoverRebinding.SrgwGtp4,
 		SRH:        *srh,
 	}
 	data, err := json.Marshal(action)
@@ -415,11 +415,11 @@ func (c *Ctrl) CreateNewDownlinkExistingSession(ctx context.Context, ueCtrl json
 		return err
 	}
 
-	// migration after delay
-	ctxDelayMigration, cancel := context.WithTimeout(ctx, conf.MigrationDelay)
+	// rebinding after delay
+	ctxDelayRebinding, cancel := context.WithTimeout(ctx, conf.RebindingDelay)
 	defer cancel()
 	select {
-	case <-ctxDelayMigration.Done():
+	case <-ctxDelayRebinding.Done():
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -427,7 +427,7 @@ func (c *Ctrl) CreateNewDownlinkExistingSession(ctx context.Context, ueCtrl json
 		}
 	}
 
-	// migration
+	// rebinding
 	// 1. new downlink rule on target edge
 	rule := n4tosrv6.Rule{
 		Enabled: true,
@@ -443,13 +443,13 @@ func (c *Ctrl) CreateNewDownlinkExistingSession(ctx context.Context, ueCtrl json
 	if err != nil {
 		return err
 	}
-	uloc, err := c.pushSingleRule(ctx, conf.HandoverMigration.Anchor, data)
+	uloc, err := c.pushSingleRule(ctx, conf.HandoverRebinding.Anchor, data)
 	if err != nil {
 		return err
 	}
 	session.TargetDownlinkRule = uloc
 
-	srh, err = n4tosrv6.NewSRH(conf.HandoverMigration.UplinkSegments)
+	srh, err = n4tosrv6.NewSRH(conf.HandoverRebinding.UplinkSegments)
 	if err != nil {
 		return err
 	}

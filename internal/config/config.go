@@ -87,11 +87,11 @@ type N4SR4MEC struct {
 }
 
 type SliceSR struct {
-	MigrationAPosteriori bool          `yaml:"migration-a-posteriori"`
-	MigrationDelay       time.Duration `yaml:"migration-delay"`
-	Service              netip.Addr    `yaml:"service"`
-	PsEstablishment      SRConfig      `yaml:"ps-establishment"`
-	HandoverMigration    SRConfig      `yaml:"handover-migration"`
+	PostHandoverRebinding bool          `yaml:"post-handover-rebinding"`
+	RebindingDelay        time.Duration `yaml:"rebinding-delay"`
+	Service               netip.Addr    `yaml:"service"`
+	PsEstablishment       SRConfig      `yaml:"ps-establishment"`
+	HandoverRebinding     SRConfig      `yaml:"handover-rebinding"`
 }
 
 type SRConfig struct {
