@@ -42,26 +42,24 @@ func (t *TEIDsPool) Next(ctx context.Context) (TEID, error) {
 	}
 	teid := TEID(0)
 	for {
+		if err := ctx.Err(); err != nil {
+			return 0, err
+		}
+		teid = TEID(rand.Uint32())
+		if teid == 0 {
+			continue
+		}
 		select {
 		case <-ctx.Done():
 			return 0, ctx.Err()
-		default:
-			teid = TEID(rand.Uint32())
-			if teid == 0 {
-				continue
-			}
-			select {
-			case <-ctx.Done():
-				return 0, ctx.Err()
-			case <-t.ch:
-				// pool is locked
-				if _, ok := t.teids[teid]; !ok {
-					t.teids[teid] = struct{}{}
-					t.ch <- struct{}{} // unlock the pool
-					return teid, nil
-				}
+		case <-t.ch:
+			// pool is locked
+			if _, ok := t.teids[teid]; !ok {
+				t.teids[teid] = struct{}{}
 				t.ch <- struct{}{} // unlock the pool
+				return teid, nil
 			}
+			t.ch <- struct{}{} // unlock the pool
 		}
 	}
 }

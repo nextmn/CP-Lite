@@ -121,13 +121,12 @@ func (amf *Amf) HandleHandoverRequestAckSR4MEC(m n1n2.HandoverRequestAck) {
 	defer cancel()
 	select {
 	case <-ctxDelay.Done():
-		select {
-		case <-ctx.Done():
+		if err := ctx.Err(); err != nil {
 			logrus.WithError(ctx.Err()).Error("Context was done before sending ps/handover-command")
-		default:
-			if _, err := amf.client.Do(req); err != nil {
-				logrus.WithError(err).Error("Could not send ps/handover-command")
-			}
+			return
+		}
+		if _, err := amf.client.Do(req); err != nil {
+			logrus.WithError(err).Error("Could not send ps/handover-command")
 		}
 	}
 }
@@ -285,13 +284,12 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 	defer cancel()
 	select {
 	case <-ctxDelay.Done():
-		select {
-		case <-ctx.Done():
+		if err := ctx.Err(); err != nil {
 			logrus.WithError(ctx.Err()).Error("Context was done before sending ps/handover-command")
-		default:
-			if _, err := amf.client.Do(req); err != nil {
-				logrus.WithError(err).Error("Could not send ps/handover-command")
-			}
+			return
+		}
+		if _, err := amf.client.Do(req); err != nil {
+			logrus.WithError(err).Error("Could not send ps/handover-command")
 		}
 	}
 }

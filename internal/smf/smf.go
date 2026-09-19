@@ -96,14 +96,11 @@ func (smf *Smf) CreateSessionDownlink(ctx context.Context, ueCtrl jsonapi.Contro
 		return nil, ErrSmfNotStarted
 	}
 	smfCtx := smf.Context()
-	select {
-	case <-ctx.Done():
-		// if ctx is over, abort
-		return nil, ctx.Err()
-	case <-smfCtx.Done():
-		// if smf.ctx is over, abort
-		return nil, smfCtx.Err()
-	default:
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err := smfCtx.Err(); err != nil {
+		return nil, err
 	}
 	// check for existing session
 	s, ok := smf.slices.Load(dnn)
@@ -163,14 +160,11 @@ func (smf *Smf) CreateSessionDownlinkFWUpfI(ctx context.Context, ueCtrl jsonapi.
 		return nil, ErrSmfNotStarted
 	}
 	smfCtx := smf.Context()
-	select {
-	case <-ctx.Done():
-		// if ctx is over, abort
-		return nil, ctx.Err()
-	case <-smfCtx.Done():
-		// if smf.ctx is over, abort
-		return nil, smfCtx.Err()
-	default:
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err := smfCtx.Err(); err != nil {
+		return nil, err
 	}
 
 	upf_any, ok := smf.upfs.Load(fwUpfi.NodeID)
@@ -233,14 +227,11 @@ func (smf *Smf) CreateSessionUplink(ctx context.Context, ueCtrl jsonapi.ControlU
 		return nil, ErrSmfNotStarted
 	}
 	smfCtx := smf.Context()
-	select {
-	case <-ctx.Done():
-		// if ctx is over, abort
-		return nil, ctx.Err()
-	case <-smfCtx.Done():
-		// if smf.ctx is over, abort
-		return nil, smfCtx.Err()
-	default:
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err := smfCtx.Err(); err != nil {
+		return nil, err
 	}
 	// check for existing session
 	s, ok := smf.slices.Load(dnn)
@@ -322,14 +313,11 @@ func (smf *Smf) UpdateSessionUplink(ctx context.Context, ueCtrl jsonapi.ControlU
 		return nil, ErrSmfNotStarted
 	}
 	smfCtx := smf.Context()
-	select {
-	case <-ctx.Done():
-		// if ctx is over, abort
-		return nil, ctx.Err()
-	case <-smfCtx.Done():
-		// if smf.ctx is over, abort
-		return nil, smfCtx.Err()
-	default:
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err := smfCtx.Err(); err != nil {
+		return nil, err
 	}
 	// check for existing session
 	s, ok := smf.slices.Load(dnn)

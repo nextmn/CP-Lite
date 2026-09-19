@@ -420,10 +420,8 @@ func (c *Ctrl) CreateNewDownlinkExistingSession(ctx context.Context, ueCtrl json
 	defer cancel()
 	select {
 	case <-ctxDelayRebinding.Done():
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
+		if err := ctx.Err(); err != nil {
+			return err
 		}
 	}
 

@@ -75,29 +75,28 @@ type fteidErr struct {
 func (upf *Upf) nextListenFteid(listenInterface netip.Addr) <-chan fteidErr {
 	ch := make(chan fteidErr)
 	ctx := upf.Context()
-	select {
-	case <-ctx.Done():
-		ch <- fteidErr{nil, ctx.Err()}
+	if err := ctx.Err(); err != nil {
+		ch <- fteidErr{nil, err}
 		close(ch)
-	default:
-		go func(ctx context.Context, listenInterface netip.Addr, c chan<- fteidErr) {
-			defer close(c)
-			iface, ok := upf.interfaces[listenInterface]
-			if !ok {
-				c <- fteidErr{nil, ErrInterfaceNotFound}
-				return
-			}
-			teid, err := iface.Teids.Next(ctx)
-			if err != nil {
-				c <- fteidErr{nil, err}
-				return
-			}
-			c <- fteidErr{&jsonapi.Fteid{
-				Addr: listenInterface,
-				Teid: uint32(teid),
-			}, nil}
-		}(ctx, listenInterface, ch)
+		return ch
 	}
+	go func(ctx context.Context, listenInterface netip.Addr, c chan<- fteidErr) {
+		defer close(c)
+		iface, ok := upf.interfaces[listenInterface]
+		if !ok {
+			c <- fteidErr{nil, ErrInterfaceNotFound}
+			return
+		}
+		teid, err := iface.Teids.Next(ctx)
+		if err != nil {
+			c <- fteidErr{nil, err}
+			return
+		}
+		c <- fteidErr{&jsonapi.Fteid{
+			Addr: listenInterface,
+			Teid: uint32(teid),
+		}, nil}
+	}(ctx, listenInterface, ch)
 	return ch
 }
 

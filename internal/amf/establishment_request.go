@@ -90,13 +90,12 @@ func (amf *Amf) HandleEstablishmentRequestSR4MEC(ps n1n2.PduSessionEstabReqMsg) 
 	defer cancel()
 	select {
 	case <-ctxDelay.Done():
-		select {
-		case <-ctx.Done():
+		if err := ctx.Err(); err != nil {
 			logrus.WithError(ctx.Err()).Error("Context was done before sending ps/n2-establishment-request")
-		default:
-			if _, err := amf.client.Do(req); err != nil {
-				logrus.WithError(err).Error("Could not send ps/n2-establishment-request")
-			}
+			return
+		}
+		if _, err := amf.client.Do(req); err != nil {
+			logrus.WithError(err).Error("Could not send ps/n2-establishment-request")
 		}
 	}
 }
@@ -151,13 +150,12 @@ func (amf *Amf) HandleEstablishmentRequest(ps n1n2.PduSessionEstabReqMsg) {
 	defer cancel()
 	select {
 	case <-ctxDelay.Done():
-		select {
-		case <-ctx.Done():
+		if err := ctx.Err(); err != nil {
 			logrus.WithError(ctx.Err()).Error("Context was done before sending ps/n2-establishment-request")
-		default:
-			if _, err := amf.client.Do(req); err != nil {
-				logrus.WithError(err).Error("Could not send ps/n2-establishment-request")
-			}
+			return
+		}
+		if _, err := amf.client.Do(req); err != nil {
+			logrus.WithError(err).Error("Could not send ps/n2-establishment-request")
 		}
 	}
 }

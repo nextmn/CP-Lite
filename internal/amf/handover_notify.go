@@ -66,10 +66,8 @@ func (amf *Amf) HandleHandoverNotifySR4MEC(m n1n2.HandoverNotify) {
 	defer cancel()
 	select {
 	case <-ctxProcessing.Done():
-		select {
-		case <-ctx.Done():
+		if err := ctx.Err(); err != nil {
 			return
-		default:
 		}
 	}
 
@@ -123,10 +121,8 @@ func (amf *Amf) HandleHandoverNotify(m n1n2.HandoverNotify) {
 	defer cancel()
 	select {
 	case <-ctxProcessing.Done():
-		select {
-		case <-ctx.Done():
+		if err := ctx.Err(); err != nil {
 			return
-		default:
 		}
 	}
 
