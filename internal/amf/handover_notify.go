@@ -68,11 +68,9 @@ func (amf *Amf) HandleHandoverNotifySR4MEC(m n1n2.HandoverNotify) {
 	// We can increase artificially the processing time to have a result closer of a real setup.
 	ctxProcessing, cancel := context.WithTimeout(ctx, amf.emulation.HandoverNotify)
 	defer cancel()
-	select {
-	case <-ctxProcessing.Done():
-		if err := ctx.Err(); err != nil {
-			return
-		}
+	<-ctxProcessing.Done()
+	if err := ctx.Err(); err != nil {
+		return
 	}
 
 	for _, s := range m.Sessions {
@@ -123,11 +121,9 @@ func (amf *Amf) HandleHandoverNotify(m n1n2.HandoverNotify) {
 	// We can increase artificially the processing time to have a result closer of a real setup.
 	ctxProcessing, cancel := context.WithTimeout(ctx, amf.emulation.HandoverNotify)
 	defer cancel()
-	select {
-	case <-ctxProcessing.Done():
-		if err := ctx.Err(); err != nil {
-			return
-		}
+	<-ctxProcessing.Done()
+	if err := ctx.Err(); err != nil {
+		return
 	}
 
 	for _, s := range m.Sessions {

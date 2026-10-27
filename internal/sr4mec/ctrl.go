@@ -418,11 +418,9 @@ func (c *Ctrl) CreateNewDownlinkExistingSession(ctx context.Context, ueCtrl json
 	// rebinding after delay
 	ctxDelayRebinding, cancel := context.WithTimeout(ctx, conf.RebindingDelay)
 	defer cancel()
-	select {
-	case <-ctxDelayRebinding.Done():
-		if err := ctx.Err(); err != nil {
-			return err
-		}
+	<-ctxDelayRebinding.Done()
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 
 	// rebinding

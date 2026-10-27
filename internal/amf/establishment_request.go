@@ -91,15 +91,13 @@ func (amf *Amf) HandleEstablishmentRequestSR4MEC(ps n1n2.PduSessionEstabReqMsg) 
 	// send request after one-way-delay is over
 	ctxDelay, cancel := context.WithTimeout(ctx, amf.n2.OneWayDelay(ps.Gnb))
 	defer cancel()
-	select {
-	case <-ctxDelay.Done():
-		if err := ctx.Err(); err != nil {
-			logrus.WithError(ctx.Err()).Error("Context was done before sending ps/n2-establishment-request")
-			return
-		}
-		if _, err := amf.client.Do(req); err != nil {
-			logrus.WithError(err).Error("Could not send ps/n2-establishment-request")
-		}
+	<-ctxDelay.Done()
+	if err := ctx.Err(); err != nil {
+		logrus.WithError(ctx.Err()).Error("Context was done before sending ps/n2-establishment-request")
+		return
+	}
+	if _, err := amf.client.Do(req); err != nil {
+		logrus.WithError(err).Error("Could not send ps/n2-establishment-request")
 	}
 }
 
@@ -151,14 +149,12 @@ func (amf *Amf) HandleEstablishmentRequest(ps n1n2.PduSessionEstabReqMsg) {
 	// send request after one-way-delay is over
 	ctxDelay, cancel := context.WithTimeout(ctx, amf.n2.OneWayDelay(ps.Gnb))
 	defer cancel()
-	select {
-	case <-ctxDelay.Done():
-		if err := ctx.Err(); err != nil {
-			logrus.WithError(ctx.Err()).Error("Context was done before sending ps/n2-establishment-request")
-			return
-		}
-		if _, err := amf.client.Do(req); err != nil {
-			logrus.WithError(err).Error("Could not send ps/n2-establishment-request")
-		}
+	<-ctxDelay.Done()
+	if err := ctx.Err(); err != nil {
+		logrus.WithError(ctx.Err()).Error("Context was done before sending ps/n2-establishment-request")
+		return
+	}
+	if _, err := amf.client.Do(req); err != nil {
+		logrus.WithError(err).Error("Could not send ps/n2-establishment-request")
 	}
 }

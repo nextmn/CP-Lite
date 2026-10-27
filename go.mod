@@ -1,6 +1,6 @@
 module github.com/nextmn/cp-lite
 
-go 1.27.1
+go 1.27.3
 
 require (
 	github.com/nextmn/cli-xdg v0.0.1
@@ -17,5 +17,5 @@ require (
 require (
 	github.com/adrg/xdg v0.5.3 // indirect
 	github.com/gofrs/uuid/v5 v5.5.1 // indirect
-	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
 )

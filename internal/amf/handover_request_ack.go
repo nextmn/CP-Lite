@@ -122,15 +122,13 @@ func (amf *Amf) HandleHandoverRequestAckSR4MEC(m n1n2.HandoverRequestAck) {
 	// send request after one-way-delay is over
 	ctxDelay, cancel := context.WithTimeout(ctx, amf.n2.OneWayDelay(m.SourcegNB))
 	defer cancel()
-	select {
-	case <-ctxDelay.Done():
-		if err := ctx.Err(); err != nil {
-			logrus.WithError(ctx.Err()).Error("Context was done before sending ps/handover-command")
-			return
-		}
-		if _, err := amf.client.Do(req); err != nil {
-			logrus.WithError(err).Error("Could not send ps/handover-command")
-		}
+	<-ctxDelay.Done()
+	if err := ctx.Err(); err != nil {
+		logrus.WithError(ctx.Err()).Error("Context was done before sending ps/handover-command")
+		return
+	}
+	if _, err := amf.client.Do(req); err != nil {
+		logrus.WithError(err).Error("Could not send ps/handover-command")
 	}
 }
 
@@ -285,14 +283,12 @@ func (amf *Amf) HandleHandoverRequestAck(m n1n2.HandoverRequestAck) {
 	// send request after one-way-delay is over
 	ctxDelay, cancel := context.WithTimeout(ctx, amf.n2.OneWayDelay(m.SourcegNB))
 	defer cancel()
-	select {
-	case <-ctxDelay.Done():
-		if err := ctx.Err(); err != nil {
-			logrus.WithError(ctx.Err()).Error("Context was done before sending ps/handover-command")
-			return
-		}
-		if _, err := amf.client.Do(req); err != nil {
-			logrus.WithError(err).Error("Could not send ps/handover-command")
-		}
+	<-ctxDelay.Done()
+	if err := ctx.Err(); err != nil {
+		logrus.WithError(ctx.Err()).Error("Context was done before sending ps/handover-command")
+		return
+	}
+	if _, err := amf.client.Do(req); err != nil {
+		logrus.WithError(err).Error("Could not send ps/handover-command")
 	}
 }
