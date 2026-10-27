@@ -112,7 +112,7 @@ func (c *Ctrl) CreateSessionUplink(ctx context.Context, ueCtrl jsonapi.ControlUR
 	c.currentTeid++
 	conf, ok := c.slicesSR[dnn]
 	if !ok {
-		return nil, fmt.Errorf("No SR config for slice %s", dnn)
+		return nil, fmt.Errorf("no SR config for slice %s", dnn)
 	}
 	session := &PduSessionN3{
 		UeIpAddr:    ueIpAddr,
@@ -158,7 +158,7 @@ func (c *Ctrl) CreateSessionUplink(ctx context.Context, ueCtrl jsonapi.ControlUR
 func (c *Ctrl) CreateSessionDownlink(ctx context.Context, ueCtrl jsonapi.ControlURI, ueIp netip.Addr, dnn config.SliceName, gnbCtrl jsonapi.ControlURI, gnbFteid jsonapi.Fteid) (*PduSessionN3, error) {
 	conf, ok := c.slicesSR[dnn]
 	if !ok {
-		return nil, fmt.Errorf("No SR config for slice %s", dnn)
+		return nil, fmt.Errorf("no SR config for slice %s", dnn)
 	}
 	// check for existing session
 	session, ok := c.sessions[ueIp]
@@ -218,7 +218,7 @@ func (c *Ctrl) CreateNewUplinkExistingSession(ctx context.Context, ueCtrl jsonap
 	c.currentTeid++
 	conf, ok := c.slicesSR[dnn]
 	if !ok {
-		return nil, fmt.Errorf("No SR config for slice %s", dnn)
+		return nil, fmt.Errorf("no SR config for slice %s", dnn)
 	}
 	// check for existing session
 	session, ok := c.sessions[ueIpAddr]
@@ -276,7 +276,7 @@ func (c *Ctrl) CreateForwarding(ctx context.Context, ueCtrl jsonapi.ControlURI, 
 	c.currentTeid++
 	conf, ok := c.slicesSR[dnn]
 	if !ok {
-		return nil, fmt.Errorf("No SR config for slice %s", dnn)
+		return nil, fmt.Errorf("no SR config for slice %s", dnn)
 	}
 	// check for existing session
 	session, ok := c.sessions[ueIpAddr]
@@ -370,7 +370,7 @@ func (c *Ctrl) CreateForwarding(ctx context.Context, ueCtrl jsonapi.ControlURI, 
 func (c *Ctrl) CreateNewDownlinkExistingSession(ctx context.Context, ueCtrl jsonapi.ControlURI, ueIpAddr netip.Addr, dnn config.SliceName) error {
 	conf, ok := c.slicesSR[dnn]
 	if !ok {
-		return fmt.Errorf("No SR config for slice %s", dnn)
+		return fmt.Errorf("no SR config for slice %s", dnn)
 	}
 	// check for existing session
 	session, ok := c.sessions[ueIpAddr]
