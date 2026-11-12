@@ -12,7 +12,7 @@ import (
 
 	"github.com/nextmn/json-api/jsonapi"
 
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 )
 
 type SliceName string
@@ -28,7 +28,7 @@ func ParseConf(file string) (*CPConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = yaml.Unmarshal(yamlFile, &conf)
+	err = yaml.Load(yamlFile, &conf)
 	if err != nil {
 		return nil, err
 	}
